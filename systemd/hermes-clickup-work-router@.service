@@ -1,0 +1,15 @@
+[Unit]
+Description=Hermes ClickUp Work Router for %i
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/.hermes/plugins/clickup-work-router
+Environment=PYTHONUNBUFFERED=1
+Environment=HERMES_HOME=%h/.hermes
+ExecStart=/usr/bin/python3 -m clickup_work_router.service --workspace %i --env-file %h/.hermes/clickup-webhook-router/%i/.env
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

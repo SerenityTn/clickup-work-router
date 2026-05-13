@@ -1,0 +1,11 @@
+{
+  "name": "clickup-work-router",
+  "label": "ClickUp Router",
+  "description": "ClickUp webhook routing into Hermes Kanban.",
+  "icon": "Workflow",
+  "version": "0.1.0",
+  "tab": { "path": "/clickup-router", "position": "after:kanban" },
+  "entry": "dist/index.js",
+  "css": "dist/style.css",
+  "api": "plugin_api.py"
+}

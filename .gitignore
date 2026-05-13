@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Runtime / local secrets
+.env
+.env.*
+*.env
+*.log
+*.pid
+*.lock
+*.sqlite
+*.sqlite3
+*.db
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
+
+# Build outputs
+build/
+dist/
+*.egg-info/
+
+# Keep checked-in dashboard static bundle under dashboard/dist
+!dashboard/dist/
+!dashboard/dist/**

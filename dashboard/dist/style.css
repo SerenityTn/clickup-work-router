@@ -1,0 +1,3 @@
+.clickup-work-router { padding: 1rem; font-family: system-ui, sans-serif; }
+.clickup-work-router section { margin: 1rem 0; padding: 1rem; border: 1px solid var(--border-color, #ddd); border-radius: 8px; }
+.clickup-work-router pre { overflow: auto; background: var(--code-bg, #111); color: var(--code-fg, #eee); padding: .75rem; border-radius: 6px; }
