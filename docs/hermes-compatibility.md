@@ -89,7 +89,7 @@ No active-profile plugin was enabled, no active gateway was restarted, and no pr
 
 ## Isolated native Desktop runtime evidence
 
-On 2026-08-07 the packaged Linux Hermes Desktop app was built from the current Hermes v0.19.0 source and launched under Xvfb with an empty allowlisted environment, a disposable `HOME`, `HERMES_HOME`, Electron user-data directory, and loopback-only Chrome DevTools endpoint:
+On 2026-08-07 the packaged Linux Hermes Desktop app was built from the assessed Hermes Agent v0.19.0 source tree (whose Desktop package metadata currently reports `hermes@0.17.0`) and launched under Xvfb with an empty allowlisted environment, a disposable `HOME`, `HERMES_HOME`, Electron user-data directory, and loopback-only Chrome DevTools endpoint:
 
 - the regular backend plugin was installed and enabled only in the disposable profile;
 - the Desktop artifact was copied from that installed plugin and explicitly enabled only in isolated Electron local storage;
@@ -103,5 +103,5 @@ The only process diagnostics were expected headless Linux D-Bus warnings and a f
 ## Remaining compatibility risks
 
 1. ClickUp API hydration and signed-webhook parity still need sanitized production-like payloads before any non-dry-run cutover.
-2. Contributor guidance and CI across supported Python versions remain required before a community preview.
+2. Hosted CI is defined with immutable action SHAs across Python 3.11–3.13, but it remains unobserved until the approval-gated feature branch is published.
 3. Enabling either UI outside a disposable profile remains an explicit trust/configuration action and is not automated.

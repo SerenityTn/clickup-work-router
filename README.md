@@ -15,7 +15,8 @@ This plugin is complementary to the Hermes Kanban kernel. It normalizes ClickUp 
 - provider-neutral routing decisions
 - stable dedupe keys
 - Kanban CLI dispatch with `dry_run` default
-- current web-dashboard SDK bundle and read-mostly backend API
+- current web-dashboard SDK bundle with readable workspace/status cards and read-mostly backend API
+- isolated web-dashboard and packaged Linux Desktop runtime mounting verified
 - opt-in native Hermes Desktop page using `@hermes/plugin-sdk`
 - systemd user template for side-by-side testing
 
@@ -24,9 +25,13 @@ See [`docs/hermes-compatibility.md`](docs/hermes-compatibility.md) for the verif
 ## Running tests
 
 ```bash
-cd /home/sysadmin/.hermes/profiles/founder/workspace/clickup-work-router
 python3 -m pytest -q
+python3 -m compileall -q clickup_work_router dashboard __init__.py
+node --check dashboard/dist/index.js
+node --check desktop-plugin/plugin.js
 ```
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for isolated setup, credential-free preview commands, source-of-truth boundaries, and pull-request expectations. Start synthetic configuration from [`examples/workspace.env.example`](examples/workspace.env.example); keep all credential fields empty and `DRY_RUN=true`.
 
 ## Native installation and isolated preview
 
@@ -71,6 +76,8 @@ Secrets are never committed. Env names used by v1:
 - `CLICKUP_TEAM_ID`
 - `CLICKUP_API_TOKEN`
 - `CLICKUP_WEBHOOK_SECRET`
+- `ROUTER_SHARED_TOKEN` for optional router request authentication
+- `CLICKUP_ROUTER_PORT` for the service port; loopback binding is controlled by the `--host` CLI argument and defaults to `127.0.0.1`
 - `CLICKUP_LIST_ID` or `CLICKUP_LIST_IDS`
 - `KANBAN_BOARD`
 - `CLICKUP_USER_PROFILE_MAP` as `clickup_user_id:profile,...`
@@ -83,7 +90,6 @@ Dashboard/API output reports secret presence booleans only, not values.
 
 ## Gaps for v1.1+
 
-- Add contributor guidance and CI across supported Python versions before a community preview.
 - Add native Kanban upsert-by-external-ref if CLI support differs from assumed flags.
 - Add optional ClickUp status/comment sync policy.
 - Add replay endpoint with explicit confirmation.
