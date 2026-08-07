@@ -138,6 +138,7 @@ def test_human_question_uses_direct_reply_not_kanban_task(monkeypatch):
     cfg = WorkspaceConfig(name="chessmentor", company_slug="chessmentor", list_ids=["l1"], kanban_board="chessmentor", dry_run=False)
     cfg.profile_map["clickup_user_ids"] = {"u1": "product-lead-chessmentor"}
     calls = []
+    monkeypatch.setattr("clickup_work_router.service.find_active_kanban_task", lambda workspace, decision: None)
     monkeypatch.setattr("clickup_work_router.service.dispatch_to_kanban", lambda workspace, decision: calls.append(("kanban", decision)) or SimpleNamespace(ok=True, external_ref="kanban", dry_run=False, stderr="", stdout=""))
     monkeypatch.setattr("clickup_work_router.service.dispatch_direct_reply", lambda workspace, decision: calls.append(("direct", decision)) or SimpleNamespace(ok=True, external_ref="direct", dry_run=False, stderr="", stdout=""))
 
@@ -209,6 +210,7 @@ def test_agent_authored_cross_agent_handoff_wakes_target_owner(monkeypatch):
     payload = _task_payload("Product definition is complete; Growth can proceed with Path B.")
     payload["comment"]["user"] = {"id": "product1", "username": "Product-Lead"}
     payload["task"]["assignees"] = [{"id": "growth1"}]
+    monkeypatch.setattr("clickup_work_router.service.find_active_kanban_task", lambda workspace, decision: None)
     monkeypatch.setattr("clickup_work_router.service.dispatch_to_kanban", lambda workspace, decision: calls.append(decision) or SimpleNamespace(ok=True, external_ref="kanban", dry_run=False, stderr="", stdout=""))
 
     response = RouterApp(cfg).handle_payload(payload)
@@ -231,6 +233,7 @@ def test_duplicate_webhook_posts_claim_dedupe_before_spawning_direct_reply(monke
         time.sleep(0.05)
         return SimpleNamespace(ok=True, external_ref="direct", dry_run=False, stderr="", stdout="")
 
+    monkeypatch.setattr("clickup_work_router.service.find_active_kanban_task", lambda workspace, decision: None)
     monkeypatch.setattr("clickup_work_router.service.dispatch_direct_reply", slow_direct_reply)
     app = RouterApp(cfg)
     payload = _task_payload("what is next?")

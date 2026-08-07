@@ -61,9 +61,8 @@ def _isolated_env(root: Path, hermes_home: Path) -> dict[str, str]:
 
 def _create_git_snapshot(source: Path, snapshot: Path, *, git_bin: str, env: dict[str, str]) -> None:
     tree = _run([git_bin, "write-tree"], cwd=source, env=env).stdout.strip()
-    parent = _run([git_bin, "rev-parse", "HEAD"], cwd=source, env=env).stdout.strip()
     commit = _run(
-        [git_bin, "commit-tree", tree, "-p", parent, "-m", "Disposable isolated preview snapshot"],
+        [git_bin, "commit-tree", tree, "-m", "Disposable isolated preview snapshot"],
         cwd=source,
         env=env,
     ).stdout.strip()
@@ -85,6 +84,12 @@ def _create_git_snapshot(source: Path, snapshot: Path, *, git_bin: str, env: dic
         ],
         env=env,
     )
+    installed_commit = _run(
+        [git_bin, f"--git-dir={snapshot}", "rev-parse", "--verify", "refs/heads/preview"],
+        env=env,
+    ).stdout.strip()
+    if installed_commit != commit:
+        raise IsolatedPreviewError("immutable preview ref does not match the staged-index commit")
     _run(
         [git_bin, f"--git-dir={snapshot}", "symbolic-ref", "HEAD", "refs/heads/preview"],
         env=env,

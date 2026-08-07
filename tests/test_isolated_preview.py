@@ -98,3 +98,35 @@ def test_snapshot_uses_immutable_git_index_not_mutable_worktree(tmp_path):
 
     assert captured.stdout == "indexed-safe-content"
     assert "must-not-enter-snapshot" not in captured.stdout
+
+
+def test_snapshot_materializes_from_a_shallow_checkout(tmp_path):
+    source = tmp_path / "source"
+    source.mkdir()
+    env_root = tmp_path / "env"
+    env_root.mkdir()
+    env = _isolated_env(env_root, env_root / "hermes-home")
+    git = "git"
+
+    subprocess.run([git, "init", "-q"], cwd=source, env=env, check=True)
+    subprocess.run([git, "config", "user.name", "Test"], cwd=source, env=env, check=True)
+    subprocess.run([git, "config", "user.email", "test@localhost"], cwd=source, env=env, check=True)
+    (source / "plugin.yaml").write_text("name: shallow-preview\n")
+    subprocess.run([git, "add", "plugin.yaml"], cwd=source, env=env, check=True)
+    subprocess.run([git, "commit", "-qm", "shallow source"], cwd=source, env=env, check=True)
+    head = subprocess.run(
+        [git, "rev-parse", "HEAD"], cwd=source, env=env, check=True, capture_output=True, text=True
+    ).stdout.strip()
+    (source / ".git" / "shallow").write_text(f"{head}\n")
+
+    snapshot = tmp_path / "snapshot.git"
+    _create_git_snapshot(source, snapshot, git_bin=git, env=env)
+    captured = subprocess.run(
+        [git, f"--git-dir={snapshot}", "show", "preview:plugin.yaml"],
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert captured.stdout == "name: shallow-preview\n"
