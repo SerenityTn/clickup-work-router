@@ -82,14 +82,26 @@ On 2026-08-07 the regular plugin was installed and enabled only inside a disposa
 - `/clickup-router` mounted the plugin page with `ClickUp Work Router`, a healthy service badge, the redacted workspace payload, and the recent-events payload;
 - the authenticated dashboard SDK fetched the gated workspace API successfully;
 - browser console and JavaScript error buffers were empty;
-- the current page intentionally renders redacted JSON blocks; this is functional runtime evidence, not final community-preview information design;
+- the page renders concise workspace, routing-policy, and credential-presence cards plus an explicit empty recent-events state; no raw payload blocks remain;
 - the dashboard process was killed, its disposable Hermes home was removed, and the loopback port was verified closed.
 
 No active-profile plugin was enabled, no active gateway was restarted, and no production ClickUp credentials were used.
 
+## Isolated native Desktop runtime evidence
+
+On 2026-08-07 the packaged Linux Hermes Desktop app was built from the current Hermes v0.19.0 source and launched under Xvfb with an empty allowlisted environment, a disposable `HOME`, `HERMES_HOME`, Electron user-data directory, and loopback-only Chrome DevTools endpoint:
+
+- the regular backend plugin was installed and enabled only in the disposable profile;
+- the Desktop artifact was copied from that installed plugin and explicitly enabled only in isolated Electron local storage;
+- the Desktop sidebar discovered `ClickUp Router` and navigation mounted `#/clickup-work-router`;
+- the page rendered `ClickUp Work Router`, a healthy service badge, redacted workspace data, and an empty recent-events payload through `ctx.rest('/status')`;
+- no renderer exceptions, log errors, alert nodes, or plugin-load failures were observed;
+- the Electron/Xvfb process, disposable profile, user data, and debugging listener were removed and verified absent afterward.
+
+The only process diagnostics were expected headless Linux D-Bus warnings and a forced-shutdown diagnostic after evidence collection; they did not affect renderer mounting or plugin API behavior.
+
 ## Remaining compatibility risks
 
-1. Native Desktop rendering still needs evidence from an actual isolated Hermes Desktop runtime; repository checks verify syntax and contract shape but not renderer mounting.
-2. The web page is operational but uses raw redacted JSON blocks; a community preview should replace these with concise workspace/status cards and an explicit empty-event state.
-3. Enabling the Python backend changes live Hermes plugin configuration and restarting the gateway affects the current runtime, so any non-disposable checkpoint requires explicit approval.
-4. ClickUp API hydration and signed-webhook parity still need sanitized production-like payloads before any non-dry-run cutover.
+1. ClickUp API hydration and signed-webhook parity still need sanitized production-like payloads before any non-dry-run cutover.
+2. Contributor guidance and CI across supported Python versions remain required before a community preview.
+3. Enabling either UI outside a disposable profile remains an explicit trust/configuration action and is not automated.
