@@ -35,9 +35,10 @@ def redact_request_target(target: str) -> str:
 
 
 class RouterApp:
-    def __init__(self, workspace: WorkspaceConfig, clickup_client: Any | None = None) -> None:
+    def __init__(self, workspace: WorkspaceConfig, clickup_client: Any | None = None, runtime_env: dict[str, str] | None = None) -> None:
         self.workspace = workspace
-        token = os.environ.get(workspace.clickup_token_env, "")
+        self.runtime_env = dict(os.environ if runtime_env is None else runtime_env)
+        token = self.runtime_env.get(workspace.clickup_token_env, "")
         self.clickup = clickup_client or (ClickUpClient(token) if token else None)
 
     def health(self) -> dict[str, Any]:
@@ -46,7 +47,7 @@ class RouterApp:
             "workspace": self.workspace.name,
             "board": self.workspace.kanban_board,
             "dry_run": self.workspace.dry_run,
-            "secrets": self.workspace.secret_presence(),
+            "secrets": self.workspace.secret_presence(self.runtime_env),
             "last_error": STATE.last_error,
         }
 
@@ -104,11 +105,11 @@ class RouterApp:
         return {"ok": result.ok, "status": decision.action, "profile": decision.profile, "external_ref": result.external_ref, "dry_run": result.dry_run}
 
 
-def make_handler(app: RouterApp):
+def make_handler(app: RouterApp, *, log_requests: bool = True):
     class Handler(BaseHTTPRequestHandler):
-        def _send(self, code: int, data: dict[str, Any]) -> None:
+        def _send(self, status: int, data: dict[str, Any]) -> None:
             body = json.dumps(data).encode()
-            self.send_response(code)
+            self.send_response(status)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
@@ -125,14 +126,14 @@ def make_handler(app: RouterApp):
             if request_path != app.workspace.webhook_path:
                 self._send(404, {"ok": False, "error": "not found"})
                 return
-            router_token = os.environ.get("ROUTER_SHARED_TOKEN", "").strip()
+            router_token = app.runtime_env.get("ROUTER_SHARED_TOKEN", "").strip()
             if not router_token_is_valid(self.headers, query, router_token):
                 self._send(401, {"ok": False, "error": "router_token_mismatch"})
                 return
             length = int(self.headers.get("Content-Length", "0"))
             body = self.rfile.read(length)
             signature = self.headers.get("X-Signature") or self.headers.get("X-ClickUp-Signature")
-            secret = os.environ.get(app.workspace.webhook_secret_env, "")
+            secret = app.runtime_env.get(app.workspace.webhook_secret_env, "")
             if not secret and not app.workspace.dry_run:
                 self._send(401, {"ok": False, "error": "webhook secret is required when DRY_RUN=false"})
                 return
@@ -148,8 +149,9 @@ def make_handler(app: RouterApp):
                 self._send(500, {"ok": False, "error": str(exc)[:300]})
 
         def log_message(self, fmt: str, *args: Any) -> None:
-            message = fmt % args
-            print(f"{self.address_string()} - {redact_request_target(message)}")
+            if log_requests:
+                message = fmt % args
+                print(f"{self.address_string()} - {redact_request_target(message)}")
 
     return Handler
 

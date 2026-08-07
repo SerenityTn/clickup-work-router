@@ -63,7 +63,7 @@ class WorkspaceConfig:
     dry_run: bool = True
 
     def secret_presence(self, env: dict[str, str] | None = None) -> dict[str, bool]:
-        source = env or os.environ
+        source = os.environ if env is None else env
         return {
             "clickup_team_id": bool(source.get(self.clickup_team_id_env)),
             "clickup_token": bool(source.get(self.clickup_token_env)),

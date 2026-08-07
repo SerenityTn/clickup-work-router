@@ -60,8 +60,22 @@ Observed results:
 - the test server was terminated after verification;
 - no Hermes Kanban task was created.
 
+## Isolated preview checkpoint
+
+A disposable native-installer lifecycle now provides the bounded integration layer:
+
+- an immutable temporary commit is built directly from the staged Git index and fetched into a disposable bare repository; mutable worktree files are never copied;
+- Hermes' supported `plugins install file://… --no-enable` command installs the regular Python/dashboard plugin into a random temporary Hermes home;
+- staged Git-tree symlinks are rejected and subprocesses receive a strict temporary-home environment rather than ambient Git controls or credentials;
+- structured Hermes JSON discovery proves the regular plugin is installed but absent from the enabled set;
+- the native Desktop ESM is byte-verified only inside the disposable home's separate `desktop-plugins` directory; no Desktop runtime is started, so runtime loading is not claimed;
+- the installed regular-plugin module origin is asserted before the preview runs;
+- the preview uses an ephemeral loopback HTTP server, a synthetic ClickUp adapter, an empty runtime credential environment, and forced `DRY_RUN=true`; tests forbid the current `subprocess.run` and `subprocess.Popen` dispatch paths rather than claiming external Kanban observation;
+- Hermes' native remove command removes the regular plugin, the temporary Desktop artifact is removed, and the entire temporary home is destroyed;
+- no bespoke persistent-profile installer or recursive ownership-marker deletion logic is shipped.
+
 ## Remaining compatibility risks
 
-1. Native desktop rendering still needs user-device evidence from an actual Hermes Desktop session; repository checks can verify syntax and contract shape but not visual mounting.
-2. Enabling the Python backend changes live Hermes plugin configuration and restarting the gateway affects the current runtime, so that installation checkpoint requires explicit approval.
+1. Native desktop and web-dashboard rendering still need evidence from actual Hermes UI sessions; repository checks verify syntax, discovery, API safety, and contract shape but not visual mounting.
+2. Enabling the Python backend changes live Hermes plugin configuration and restarting the gateway affects the current runtime, so that checkpoint requires explicit approval.
 3. ClickUp API hydration and signed-webhook parity still need sanitized production-like payloads before any non-dry-run cutover.

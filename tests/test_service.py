@@ -23,6 +23,15 @@ def _task_payload(comment_text="human comment"):
 from clickup_work_router.state import STATE
 
 
+def test_router_app_copies_runtime_environment():
+    runtime_env = {}
+    app = RouterApp(WorkspaceConfig(name="preview"), runtime_env=runtime_env)
+
+    runtime_env["CLICKUP_API_TOKEN"] = "added-after-construction"
+
+    assert app.health()["secrets"]["clickup_token"] is False
+
+
 def test_dispatch_failure_does_not_poison_dedupe(monkeypatch):
     monkeypatch.delenv("CLICKUP_API_TOKEN", raising=False)
     STATE.seen.clear()
