@@ -12,9 +12,9 @@ def test_ci_is_least_privilege_and_covers_supported_contracts():
     workflow = (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text()
 
     assert "permissions:\n  contents: read" in workflow
-    assert workflow.count("actions/checkout@11d5960a326750d5838078e36cf38b85af677262") == 3
-    assert workflow.count("actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065") == 2
-    assert "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020" in workflow
+    assert workflow.count("actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803") == 3
+    assert workflow.count("actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1") == 2
+    assert "actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444" in workflow
     assert "actions/checkout@v" not in workflow
     assert "actions/setup-python@v" not in workflow
     assert "actions/setup-node@v" not in workflow
