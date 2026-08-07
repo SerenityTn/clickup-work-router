@@ -61,10 +61,10 @@ def test_loads_legacy_chessmentor_env_names():
 def test_apply_env_file_to_environ_loads_runtime_secrets(tmp_path, monkeypatch):
     env_file = tmp_path / "router.env"
     env_file.write_text("CLICKUP_API_TOKEN=token-value\nCLICKUP_WEBHOOK_SECRET=secret-value\n")
-    monkeypatch.delenv("CLICKUP_API_TOKEN", raising=False)
-    monkeypatch.delenv("CLICKUP_WEBHOOK_SECRET", raising=False)
+    monkeypatch.setenv("CLICKUP_API_TOKEN", "pre-test-token")
+    monkeypatch.setenv("CLICKUP_WEBHOOK_SECRET", "pre-test-secret")
 
-    loaded = apply_env_file_to_environ(env_file)
+    loaded = apply_env_file_to_environ(env_file, override=True)
 
     assert loaded["CLICKUP_API_TOKEN"] == "token-value"
     assert loaded["CLICKUP_WEBHOOK_SECRET"] == "secret-value"

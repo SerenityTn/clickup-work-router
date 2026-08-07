@@ -1,0 +1,9 @@
+name: clickup-work-router
+version: "0.1.0"
+description: "Route selected ClickUp work items into native Hermes Kanban with dry-run enabled by default."
+author: SerenityTn
+kind: standalone
+platforms:
+  - linux
+  - macos
+  - windows

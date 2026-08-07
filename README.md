@@ -8,29 +8,62 @@ This plugin is complementary to the Hermes Kanban kernel. It normalizes ClickUp 
 
 ## Current status
 
+- compatibility assessed against Hermes Agent v0.19.0 and the live Kanban CLI
 - stdlib Python package: `clickup_work_router`
 - ClickUp webhook signature/payload adapter
-- env-compatible ChessMentor config loader
+- env-compatible workspace config loader
 - provider-neutral routing decisions
 - stable dedupe keys
 - Kanban CLI dispatch with `dry_run` default
-- read-mostly dashboard manifest/API/static UI
+- current web-dashboard SDK bundle with readable workspace/status cards and read-mostly backend API
+- isolated web-dashboard and packaged Linux Desktop runtime mounting verified
+- opt-in native Hermes Desktop page using `@hermes/plugin-sdk`
 - systemd user template for side-by-side testing
+
+See [`docs/hermes-compatibility.md`](docs/hermes-compatibility.md) for the verified API assessment, dry-run evidence, and remaining risks.
 
 ## Running tests
 
 ```bash
-cd /home/sysadmin/workspace/hermes-plugins/clickup-work-router
 python3 -m pytest -q
+python3 -m compileall -q clickup_work_router dashboard __init__.py
+node --check dashboard/dist/index.js
+node --check desktop-plugin/plugin.js
 ```
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for isolated setup, credential-free preview commands, source-of-truth boundaries, and pull-request expectations. Start synthetic configuration from [`examples/workspace.env.example`](examples/workspace.env.example); keep all credential fields empty and `DRY_RUN=true`.
+
+## Native installation and isolated preview
+
+Use Hermes' supported installer for the Python/dashboard plugin. Keep it disabled until its backend and UI have been reviewed:
+
+```bash
+hermes plugins install SerenityTn/clickup-work-router --no-enable
+```
+
+The native Desktop page is a separate trusted-JavaScript surface. Installing it remains an explicit opt-in action:
+
+```bash
+HERMES_HOME="${HERMES_HOME:-$HOME/.hermes}"
+mkdir -p "$HERMES_HOME/desktop-plugins/clickup-work-router"
+cp desktop-plugin/plugin.js "$HERMES_HOME/desktop-plugins/clickup-work-router/plugin.js"
+```
+
+For development validation, run the fully disposable lifecycle instead of touching a real profile:
+
+```bash
+python3 -m clickup_work_router.isolated_preview --profile founder
+```
+
+The lifecycle creates an immutable temporary Git commit from the staged index—without copying mutable worktree files—and a random Hermes home, invokes `hermes plugins install file://… --no-enable`, verifies structured native discovery, installs the Desktop artifact only from that installed snapshot into the temporary home without starting a Desktop runtime, submits a synthetic webhook through the no-credential `DRY_RUN=true` preview, removes both surfaces, and destroys the complete temporary home. It does not edit or enable plugins in the active profile. Tests forbid the router's current `subprocess.run` and `subprocess.Popen` dispatch paths during preview rather than claiming to observe external Kanban state.
 
 ## Side-by-side service test
 
 Do not stop or modify production routers during skeleton validation.
 
 ```bash
-cd /home/sysadmin/workspace/hermes-plugins/clickup-work-router
-DRY_RUN=true CLICKUP_ROUTER_PORT=8765 python3 -m clickup_work_router.service --workspace chessmentor --env-file ~/.hermes/clickup-webhook-router/chessmentor/.env
+cd /home/sysadmin/.hermes/profiles/founder/workspace/clickup-work-router
+DRY_RUN=true CLICKUP_ROUTER_PORT=8765 python3 -m clickup_work_router.service --workspace example --env-file ~/.hermes/clickup-work-router/example.env
 curl -s http://127.0.0.1:8765/health
 ```
 
@@ -43,6 +76,8 @@ Secrets are never committed. Env names used by v1:
 - `CLICKUP_TEAM_ID`
 - `CLICKUP_API_TOKEN`
 - `CLICKUP_WEBHOOK_SECRET`
+- `ROUTER_SHARED_TOKEN` for optional router request authentication
+- `CLICKUP_ROUTER_PORT` for the service port; loopback binding is controlled by the `--host` CLI argument and defaults to `127.0.0.1`
 - `CLICKUP_LIST_ID` or `CLICKUP_LIST_IDS`
 - `KANBAN_BOARD`
 - `CLICKUP_USER_PROFILE_MAP` as `clickup_user_id:profile,...`
@@ -55,7 +90,6 @@ Dashboard/API output reports secret presence booleans only, not values.
 
 ## Gaps for v1.1+
 
-- Mount dashboard API in the actual Hermes dashboard runtime.
 - Add native Kanban upsert-by-external-ref if CLI support differs from assumed flags.
 - Add optional ClickUp status/comment sync policy.
 - Add replay endpoint with explicit confirmation.
