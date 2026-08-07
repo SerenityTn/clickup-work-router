@@ -8,19 +8,23 @@ This plugin is complementary to the Hermes Kanban kernel. It normalizes ClickUp 
 
 ## Current status
 
+- compatibility assessed against Hermes Agent v0.19.0 and the live Kanban CLI
 - stdlib Python package: `clickup_work_router`
 - ClickUp webhook signature/payload adapter
-- env-compatible ChessMentor config loader
+- env-compatible workspace config loader
 - provider-neutral routing decisions
 - stable dedupe keys
 - Kanban CLI dispatch with `dry_run` default
-- read-mostly dashboard manifest/API/static UI
+- current web-dashboard SDK bundle and read-mostly backend API
+- opt-in native Hermes Desktop page using `@hermes/plugin-sdk`
 - systemd user template for side-by-side testing
+
+See [`docs/hermes-compatibility.md`](docs/hermes-compatibility.md) for the verified API assessment, dry-run evidence, and remaining risks.
 
 ## Running tests
 
 ```bash
-cd /home/sysadmin/workspace/hermes-plugins/clickup-work-router
+cd /home/sysadmin/.hermes/profiles/founder/workspace/clickup-work-router
 python3 -m pytest -q
 ```
 
@@ -29,8 +33,8 @@ python3 -m pytest -q
 Do not stop or modify production routers during skeleton validation.
 
 ```bash
-cd /home/sysadmin/workspace/hermes-plugins/clickup-work-router
-DRY_RUN=true CLICKUP_ROUTER_PORT=8765 python3 -m clickup_work_router.service --workspace chessmentor --env-file ~/.hermes/clickup-webhook-router/chessmentor/.env
+cd /home/sysadmin/.hermes/profiles/founder/workspace/clickup-work-router
+DRY_RUN=true CLICKUP_ROUTER_PORT=8765 python3 -m clickup_work_router.service --workspace example --env-file ~/.hermes/clickup-work-router/example.env
 curl -s http://127.0.0.1:8765/health
 ```
 
