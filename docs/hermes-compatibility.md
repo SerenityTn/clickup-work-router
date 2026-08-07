@@ -74,8 +74,22 @@ A disposable native-installer lifecycle now provides the bounded integration lay
 - Hermes' native remove command removes the regular plugin, the temporary Desktop artifact is removed, and the entire temporary home is destroyed;
 - no bespoke persistent-profile installer or recursive ownership-marker deletion logic is shipped.
 
+## Isolated web-dashboard runtime evidence
+
+On 2026-08-07 the regular plugin was installed and enabled only inside a disposable Hermes home, then mounted in a real Hermes Agent v0.19.0 dashboard process on loopback:
+
+- the dashboard sidebar discovered `CLICKUP ROUTER`;
+- `/clickup-router` mounted the plugin page with `ClickUp Work Router`, a healthy service badge, the redacted workspace payload, and the recent-events payload;
+- the authenticated dashboard SDK fetched the gated workspace API successfully;
+- browser console and JavaScript error buffers were empty;
+- the current page intentionally renders redacted JSON blocks; this is functional runtime evidence, not final community-preview information design;
+- the dashboard process was killed, its disposable Hermes home was removed, and the loopback port was verified closed.
+
+No active-profile plugin was enabled, no active gateway was restarted, and no production ClickUp credentials were used.
+
 ## Remaining compatibility risks
 
-1. Native desktop and web-dashboard rendering still need evidence from actual Hermes UI sessions; repository checks verify syntax, discovery, API safety, and contract shape but not visual mounting.
-2. Enabling the Python backend changes live Hermes plugin configuration and restarting the gateway affects the current runtime, so that checkpoint requires explicit approval.
-3. ClickUp API hydration and signed-webhook parity still need sanitized production-like payloads before any non-dry-run cutover.
+1. Native Desktop rendering still needs evidence from an actual isolated Hermes Desktop runtime; repository checks verify syntax and contract shape but not renderer mounting.
+2. The web page is operational but uses raw redacted JSON blocks; a community preview should replace these with concise workspace/status cards and an explicit empty-event state.
+3. Enabling the Python backend changes live Hermes plugin configuration and restarting the gateway affects the current runtime, so any non-disposable checkpoint requires explicit approval.
+4. ClickUp API hydration and signed-webhook parity still need sanitized production-like payloads before any non-dry-run cutover.

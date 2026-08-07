@@ -83,7 +83,8 @@ Dashboard/API output reports secret presence booleans only, not values.
 
 ## Gaps for v1.1+
 
-- Mount dashboard API in the actual Hermes dashboard runtime.
+- Mount the native Desktop page in an actual isolated Hermes Desktop runtime.
+- Replace the functional web dashboard's raw redacted JSON blocks with concise workspace/status cards and an explicit empty-event state before a community preview.
 - Add native Kanban upsert-by-external-ref if CLI support differs from assumed flags.
 - Add optional ClickUp status/comment sync policy.
 - Add replay endpoint with explicit confirmation.
