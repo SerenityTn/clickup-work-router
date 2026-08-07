@@ -36,6 +36,18 @@ def test_dashboard_bundle_uses_current_plugin_sdk_contract():
     assert "document.body" not in bundle
 
 
+def test_dashboard_bundle_uses_community_readable_status_cards():
+    bundle = (REPO_ROOT / "dashboard" / "dist" / "index.js").read_text()
+
+    assert "WorkspaceCard" in bundle
+    assert "No recent routing events." in bundle
+    assert "Dry run" in bundle
+    assert "Kanban board" in bundle
+    assert "Credentials" in bundle
+    assert "JsonBlock" not in bundle
+    assert 'h("pre"' not in bundle
+
+
 def test_dashboard_manifest_uses_supported_icon():
     manifest = json.loads((REPO_ROOT / "dashboard" / "manifest.json").read_text())
 
