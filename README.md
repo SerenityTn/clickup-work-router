@@ -62,7 +62,8 @@ The lifecycle creates an immutable temporary Git commit from the staged index—
 Do not stop or modify production routers during skeleton validation.
 
 ```bash
-cd /home/sysadmin/.hermes/profiles/founder/workspace/clickup-work-router
+git clone https://github.com/SerenityTn/clickup-work-router.git
+cd clickup-work-router
 DRY_RUN=true CLICKUP_ROUTER_PORT=8765 python3 -m clickup_work_router.service --workspace example --env-file ~/.hermes/clickup-work-router/example.env
 curl -s http://127.0.0.1:8765/health
 ```

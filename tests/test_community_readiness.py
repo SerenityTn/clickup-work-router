@@ -59,6 +59,12 @@ def test_example_environment_contains_no_credential_values():
         assert values[key] == ""
 
 
+def test_public_readme_does_not_expose_maintainer_workspace_paths():
+    readme = (REPO_ROOT / "README.md").read_text()
+
+    assert "/home/sysadmin/.hermes/profiles/founder/workspace" not in readme
+
+
 def test_documented_router_token_is_consumed_by_runtime(tmp_path, monkeypatch):
     template = (REPO_ROOT / "examples" / "workspace.env.example").read_text()
     assert "CLICKUP_ROUTER_TOKEN" not in template
