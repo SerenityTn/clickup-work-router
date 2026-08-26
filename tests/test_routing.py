@@ -6,13 +6,13 @@ from clickup_work_router.models import ExternalDependency, ExternalUser, WorkEve
 
 
 def cfg():
-    c = WorkspaceConfig(name="chessmentor", company_slug="chessmentor", list_ids=["l1"], kanban_board="chessmentor")
+    c = WorkspaceConfig(name="example", company_slug="example", list_ids=["l1"], kanban_board="example")
     c.profile_map = {
-        "clickup_user_ids": {"u1": "product-lead-chessmentor", "agent1": "founding-engineer-chessmentor", "growth1": "growth-specialist-chessmentor"},
-        "emails": {"eng@example.com": "founding-engineer-chessmentor"},
+        "clickup_user_ids": {"u1": "product-lead-example", "agent1": "founding-engineer-example", "growth1": "growth-specialist-example"},
+        "emails": {"eng@example.com": "founding-engineer-example"},
         "usernames": {},
-        "role_aliases": {"ceo": "ceo-chessmentor", "product-lead": "product-lead-chessmentor", "growth-specialist": "growth-specialist-chessmentor"},
-        "agent_user_ids": {"agent1": "founding-engineer-chessmentor", "growth1": "growth-specialist-chessmentor"},
+        "role_aliases": {"ceo": "ceo-example", "product-lead": "product-lead-example", "growth-specialist": "growth-specialist-example"},
+        "agent_user_ids": {"agent1": "founding-engineer-example", "growth1": "growth-specialist-example"},
     }
     return c
 
@@ -34,18 +34,18 @@ def event(**kw):
 
 def test_profile_mapping_user_id_and_email():
     mapper = ProfileMapper(cfg())
-    assert mapper.profile_for_user(ExternalUser(id="u1")) == "product-lead-chessmentor"
-    assert mapper.profile_for_user(ExternalUser(id="x", email="eng@example.com")) == "founding-engineer-chessmentor"
+    assert mapper.profile_for_user(ExternalUser(id="u1")) == "product-lead-example"
+    assert mapper.profile_for_user(ExternalUser(id="x", email="eng@example.com")) == "founding-engineer-example"
 
 
 def test_assignee_route_and_loop_prevention():
     decision = route_event(event(), cfg())
     assert decision.action == "dispatch"
-    assert decision.profile == "product-lead-chessmentor"
+    assert decision.profile == "product-lead-example"
 
     agent_created_handoff = route_event(event(author=ExternalUser(id="agent1")), cfg())
     assert agent_created_handoff.action == "dispatch"
-    assert agent_created_handoff.profile == "product-lead-chessmentor"
+    assert agent_created_handoff.profile == "product-lead-example"
 
     ignored_comment = route_event(event(event_type="taskCommentPosted", comment_text="agent reply", author=ExternalUser(id="agent1")), cfg())
     assert ignored_comment.action == "ignore"
@@ -61,7 +61,7 @@ def test_assignee_route_and_loop_prevention():
         cfg(),
     )
     assert cross_agent_handoff.action == "dispatch"
-    assert cross_agent_handoff.profile == "growth-specialist-chessmentor"
+    assert cross_agent_handoff.profile == "growth-specialist-example"
     assert "cross-agent handoff" in cross_agent_handoff.reason
 
     self_comment = route_event(
@@ -83,7 +83,7 @@ def test_assignee_route_and_loop_prevention():
 def test_comment_mention_overrides_assignee():
     e = event(event_type="taskCommentPosted", comment_text="@ceo please", mentioned_aliases=["ceo"])
     decision = route_event(e, cfg())
-    assert decision.profile == "ceo-chessmentor"
+    assert decision.profile == "ceo-example"
     assert "mention" in decision.reason
 
 

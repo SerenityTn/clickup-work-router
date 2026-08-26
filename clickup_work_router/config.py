@@ -1,7 +1,7 @@
 """Configuration loading for ClickUp Work Router.
 
 The core deliberately uses only stdlib. Non-secret config may be provided by a
-small JSON file; ChessMentor-compatible environment variables are normalized into
+small JSON file; environment variables are normalized into
 these dataclasses for v1. Secrets are referenced by environment variable name and
 never serialized as values.
 """
@@ -16,9 +16,14 @@ from typing import Any
 
 _TRUE = {"1", "true", "yes", "on", "y"}
 
+# Preserve the historical implicit workspace for callers that omit the name.
+# Public examples pass an explicit neutral workspace; changing this constant is
+# a future versioned migration rather than a silent patch-level behavior change.
+LEGACY_DEFAULT_WORKSPACE = "chessmentor"
+
 
 def env_bool(name: str, default: bool = False, env: dict[str, str] | None = None) -> bool:
-    value = (env or os.environ).get(name)
+    value = (os.environ if env is None else env).get(name)
     if value is None:
         return default
     return str(value).strip().lower() in _TRUE
@@ -159,11 +164,11 @@ def apply_env_file_to_environ(path: str | Path | None, override: bool = False) -
     return loaded
 
 
-def load_workspace_from_env(name: str = "chessmentor", env_file: str | Path | None = None, environ: dict[str, str] | None = None) -> WorkspaceConfig:
-    env = dict(os.environ if environ is None else environ)
-    env.update(load_env_file(env_file))
+def load_workspace_from_env(name: str = LEGACY_DEFAULT_WORKSPACE, env_file: str | Path | None = None, environ: dict[str, str] | None = None) -> WorkspaceConfig:
+    env = load_env_file(env_file)
+    env.update(os.environ if environ is None else environ)
     slug = env.get("COMPANY_SLUG") or name
-    company = env.get("COMPANY_NAME") or ("ChessMentor" if name == "chessmentor" else name)
+    company = env.get("COMPANY_NAME") or name
     list_ids = _split_csv(env.get("CLICKUP_LIST_IDS") or env.get("CLICKUP_LIST_ID") or "")
     role_aliases = {
         "founder": env.get("FOUNDER_PROFILE", "founder"),
@@ -206,13 +211,13 @@ def load_workspace_from_env(name: str = "chessmentor", env_file: str | Path | No
         "role_aliases": role_aliases,
         "agent_user_ids": agent_user_map,
     }
-    # Current production known founder mapping may be supplied by env; keep no secret here.
+    # An optional founder-role mapping may be supplied by env; keep no identifier here.
     if env.get("FOUNDER_CLICKUP_USER_ID"):
         cfg.profile_map["clickup_user_ids"][env["FOUNDER_CLICKUP_USER_ID"]] = role_aliases["founder"]
     return cfg
 
 
-def load_config(config_path: str | Path | None = None, env_file: str | Path | None = None, workspace: str = "chessmentor") -> RouterConfig:
+def load_config(config_path: str | Path | None = None, env_file: str | Path | None = None, workspace: str = LEGACY_DEFAULT_WORKSPACE) -> RouterConfig:
     if config_path:
         data = json.loads(Path(config_path).expanduser().read_text())
         workspaces: dict[str, WorkspaceConfig] = {}

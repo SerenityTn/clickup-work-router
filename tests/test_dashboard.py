@@ -11,12 +11,12 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 def test_dashboard_status_redacts_secret_values(monkeypatch):
     monkeypatch.setenv("CLICKUP_API_TOKEN", "super-secret-token-value")
     monkeypatch.setenv("CLICKUP_WEBHOOK_SECRET", "webhook-secret")
-    status = get_status("chessmentor")
+    status = get_status("example")
     text = str(status)
     assert "super-secret-token-value" not in text
     assert "webhook-secret" not in text
-    assert status["workspaces"]["chessmentor"]["secrets"]["clickup_token"] is True
-    assert status["workspaces"]["chessmentor"]["secrets"]["webhook_secret"] is True
+    assert status["workspaces"]["example"]["secrets"]["clickup_token"] is True
+    assert status["workspaces"]["example"]["secrets"]["webhook_secret"] is True
 
 
 def test_redact_nested_token_like_keys():

@@ -23,7 +23,7 @@ try:
 except Exception:  # pragma: no cover - lets unit tests run without FastAPI
     APIRouter = None  # type: ignore[assignment]
 
-from clickup_work_router.config import load_config
+from clickup_work_router.config import LEGACY_DEFAULT_WORKSPACE, load_config
 from clickup_work_router.state import STATE
 
 router = APIRouter() if APIRouter is not None else None
@@ -51,7 +51,7 @@ def redact(value: Any) -> Any:
     return value
 
 
-def get_status(workspace: str = "chessmentor", env_file: str | None = None) -> dict[str, Any]:
+def get_status(workspace: str = LEGACY_DEFAULT_WORKSPACE, env_file: str | None = None) -> dict[str, Any]:
     cfg = load_config(env_file=env_file, workspace=workspace)
     workspaces = {name: ws.sanitized(os.environ) for name, ws in cfg.workspaces.items()}
     last = STATE.recent(workspace, 1)
@@ -74,7 +74,7 @@ def get_events(workspace: str | None = None, limit: int = 25) -> list[dict[str, 
     return redact(STATE.recent(workspace, limit))
 
 
-def get_mappings(workspace: str = "chessmentor", env_file: str | None = None) -> dict[str, Any]:
+def get_mappings(workspace: str = LEGACY_DEFAULT_WORKSPACE, env_file: str | None = None) -> dict[str, Any]:
     cfg = load_config(env_file=env_file, workspace=workspace)
     ws = cfg.get_workspace(workspace)
     return redact(ws.profile_map)
@@ -82,7 +82,7 @@ def get_mappings(workspace: str = "chessmentor", env_file: str | None = None) ->
 
 if router is not None:
     @router.get("/status")
-    async def status(workspace: str = "chessmentor"):
+    async def status(workspace: str = LEGACY_DEFAULT_WORKSPACE):
         return get_status(workspace=workspace)
 
     @router.get("/workspaces")
@@ -94,5 +94,5 @@ if router is not None:
         return get_events(workspace=workspace, limit=limit)
 
     @router.get("/mappings")
-    async def mappings(workspace: str = "chessmentor"):
+    async def mappings(workspace: str = LEGACY_DEFAULT_WORKSPACE):
         return get_mappings(workspace=workspace)

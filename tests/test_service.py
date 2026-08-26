@@ -35,8 +35,8 @@ def test_router_app_copies_runtime_environment():
 def test_dispatch_failure_does_not_poison_dedupe(monkeypatch):
     monkeypatch.delenv("CLICKUP_API_TOKEN", raising=False)
     STATE.seen.clear()
-    cfg = WorkspaceConfig(name="chessmentor", company_slug="chessmentor", list_ids=["l1"], kanban_board="chessmentor", dry_run=False)
-    cfg.profile_map["clickup_user_ids"] = {"u1": "product-lead-chessmentor"}
+    cfg = WorkspaceConfig(name="example", company_slug="example", list_ids=["l1"], kanban_board="example", dry_run=False)
+    cfg.profile_map["clickup_user_ids"] = {"u1": "product-lead-example"}
     app = RouterApp(cfg)
     payload = {
         "event": "taskCreated",
@@ -52,20 +52,20 @@ def test_dispatch_failure_does_not_poison_dedupe(monkeypatch):
 
     monkeypatch.setattr(
         "clickup_work_router.service.dispatch_to_kanban",
-        lambda workspace, decision: SimpleNamespace(ok=False, external_ref="clickup:chessmentor:t1:product-lead-chessmentor", dry_run=False, stderr="boom", stdout=""),
+        lambda workspace, decision: SimpleNamespace(ok=False, external_ref="clickup:example:t1:product-lead-example", dry_run=False, stderr="boom", stdout=""),
     )
 
     response = app.handle_payload(payload)
 
     assert response["ok"] is False
-    assert not STATE.has_seen("clickup:chessmentor:t1:product-lead-chessmentor:event-1")
+    assert not STATE.has_seen("clickup:example:t1:product-lead-example:event-1")
 
 
 def test_successful_dispatch_marks_dedupe(monkeypatch):
     monkeypatch.delenv("CLICKUP_API_TOKEN", raising=False)
     STATE.seen.clear()
-    cfg = WorkspaceConfig(name="chessmentor", company_slug="chessmentor", list_ids=["l1"], kanban_board="chessmentor", dry_run=True)
-    cfg.profile_map["clickup_user_ids"] = {"u1": "product-lead-chessmentor"}
+    cfg = WorkspaceConfig(name="example", company_slug="example", list_ids=["l1"], kanban_board="example", dry_run=True)
+    cfg.profile_map["clickup_user_ids"] = {"u1": "product-lead-example"}
     app = RouterApp(cfg)
     payload = {
         "event": "taskCreated",
@@ -87,9 +87,9 @@ def test_successful_dispatch_marks_dedupe(monkeypatch):
 
 
 def test_parse_request_path_ignores_router_token_query():
-    path, query = parse_request_path("/clickup/chessmentor?token=secret&x=1")
+    path, query = parse_request_path("/clickup/example?token=secret&x=1")
 
-    assert path == "/clickup/chessmentor"
+    assert path == "/clickup/example"
     assert query["token"] == ["secret"]
 
 
@@ -101,17 +101,17 @@ def test_router_token_accepts_query_or_header():
 
 
 def test_log_redacts_router_token_query():
-    message = '"POST /clickup/chessmentor?token=secret-value&x=1 HTTP/1.1" 401 -'
+    message = '"POST /clickup/example?token=secret-value&x=1 HTTP/1.1" 401 -'
 
-    assert redact_request_target(message) == '"POST /clickup/chessmentor?token=[REDACTED]&x=1 HTTP/1.1" 401 -'
+    assert redact_request_target(message) == '"POST /clickup/example?token=[REDACTED]&x=1 HTTP/1.1" 401 -'
 
 
 def test_comment_webhook_hydrates_latest_comment_author_for_loop_prevention(monkeypatch):
     monkeypatch.delenv("CLICKUP_API_TOKEN", raising=False)
     STATE.seen.clear()
-    cfg = WorkspaceConfig(name="chessmentor", company_slug="chessmentor", list_ids=["l1"], kanban_board="chessmentor", dry_run=False)
-    cfg.profile_map["clickup_user_ids"] = {"agent1": "growth-specialist-chessmentor"}
-    cfg.profile_map["agent_user_ids"] = {"agent1": "growth-specialist-chessmentor"}
+    cfg = WorkspaceConfig(name="example", company_slug="example", list_ids=["l1"], kanban_board="example", dry_run=False)
+    cfg.profile_map["clickup_user_ids"] = {"agent1": "growth-specialist-example"}
+    cfg.profile_map["agent_user_ids"] = {"agent1": "growth-specialist-example"}
 
     class FakeClickUp:
         def fetch_task(self, task_id):
@@ -135,8 +135,8 @@ def test_comment_webhook_hydrates_latest_comment_author_for_loop_prevention(monk
 def test_human_question_uses_direct_reply_not_kanban_task(monkeypatch):
     monkeypatch.delenv("CLICKUP_API_TOKEN", raising=False)
     STATE.seen.clear()
-    cfg = WorkspaceConfig(name="chessmentor", company_slug="chessmentor", list_ids=["l1"], kanban_board="chessmentor", dry_run=False)
-    cfg.profile_map["clickup_user_ids"] = {"u1": "product-lead-chessmentor"}
+    cfg = WorkspaceConfig(name="example", company_slug="example", list_ids=["l1"], kanban_board="example", dry_run=False)
+    cfg.profile_map["clickup_user_ids"] = {"u1": "product-lead-example"}
     calls = []
     monkeypatch.setattr("clickup_work_router.service.find_active_kanban_task", lambda workspace, decision: None)
     monkeypatch.setattr("clickup_work_router.service.dispatch_to_kanban", lambda workspace, decision: calls.append(("kanban", decision)) or SimpleNamespace(ok=True, external_ref="kanban", dry_run=False, stderr="", stdout=""))
@@ -151,8 +151,8 @@ def test_human_question_uses_direct_reply_not_kanban_task(monkeypatch):
 def test_context_comment_appends_to_active_kanban_task(monkeypatch):
     monkeypatch.delenv("CLICKUP_API_TOKEN", raising=False)
     STATE.seen.clear()
-    cfg = WorkspaceConfig(name="chessmentor", company_slug="chessmentor", list_ids=["l1"], kanban_board="chessmentor", dry_run=False)
-    cfg.profile_map["clickup_user_ids"] = {"u1": "product-lead-chessmentor"}
+    cfg = WorkspaceConfig(name="example", company_slug="example", list_ids=["l1"], kanban_board="example", dry_run=False)
+    cfg.profile_map["clickup_user_ids"] = {"u1": "product-lead-example"}
     calls = []
     monkeypatch.setattr("clickup_work_router.service.find_active_kanban_task", lambda workspace, decision: "t_active")
     monkeypatch.setattr("clickup_work_router.service.append_comment_to_kanban", lambda workspace, decision, task_id: calls.append((task_id, decision.event.comment_text)) or SimpleNamespace(ok=True, external_ref=task_id, dry_run=False, stderr="", stdout=""))
@@ -167,8 +167,8 @@ def test_context_comment_appends_to_active_kanban_task(monkeypatch):
 def test_context_comment_appends_to_active_kanban_task_even_when_blocked(monkeypatch):
     monkeypatch.delenv("CLICKUP_API_TOKEN", raising=False)
     STATE.seen.clear()
-    cfg = WorkspaceConfig(name="chessmentor", company_slug="chessmentor", list_ids=["l1"], kanban_board="chessmentor", dry_run=False)
-    cfg.profile_map["clickup_user_ids"] = {"u1": "product-lead-chessmentor"}
+    cfg = WorkspaceConfig(name="example", company_slug="example", list_ids=["l1"], kanban_board="example", dry_run=False)
+    cfg.profile_map["clickup_user_ids"] = {"u1": "product-lead-example"}
     calls = []
     payload = _task_payload("can you proceed with this plan?")
     payload["task"]["dependencies"] = [{"task_id": "t1", "depends_on": "blocker1", "type": 1}]
@@ -188,8 +188,8 @@ def test_context_comment_appends_to_active_kanban_task_even_when_blocked(monkeyp
 def test_new_scope_comment_creates_new_kanban_task(monkeypatch):
     monkeypatch.delenv("CLICKUP_API_TOKEN", raising=False)
     STATE.seen.clear()
-    cfg = WorkspaceConfig(name="chessmentor", company_slug="chessmentor", list_ids=["l1"], kanban_board="chessmentor", dry_run=False)
-    cfg.profile_map["clickup_user_ids"] = {"u1": "product-lead-chessmentor"}
+    cfg = WorkspaceConfig(name="example", company_slug="example", list_ids=["l1"], kanban_board="example", dry_run=False)
+    cfg.profile_map["clickup_user_ids"] = {"u1": "product-lead-example"}
     calls = []
     monkeypatch.setattr("clickup_work_router.service.find_active_kanban_task", lambda workspace, decision: "t_active")
     monkeypatch.setattr("clickup_work_router.service.dispatch_to_kanban", lambda workspace, decision: calls.append(decision) or SimpleNamespace(ok=True, external_ref="kanban", dry_run=False, stderr="", stdout=""))
@@ -203,9 +203,9 @@ def test_new_scope_comment_creates_new_kanban_task(monkeypatch):
 def test_agent_authored_cross_agent_handoff_wakes_target_owner(monkeypatch):
     monkeypatch.delenv("CLICKUP_API_TOKEN", raising=False)
     STATE.seen.clear()
-    cfg = WorkspaceConfig(name="chessmentor", company_slug="chessmentor", list_ids=["l1"], kanban_board="chessmentor", dry_run=False)
-    cfg.profile_map["clickup_user_ids"] = {"growth1": "growth-specialist-chessmentor", "product1": "product-lead-chessmentor"}
-    cfg.profile_map["agent_user_ids"] = {"growth1": "growth-specialist-chessmentor", "product1": "product-lead-chessmentor"}
+    cfg = WorkspaceConfig(name="example", company_slug="example", list_ids=["l1"], kanban_board="example", dry_run=False)
+    cfg.profile_map["clickup_user_ids"] = {"growth1": "growth-specialist-example", "product1": "product-lead-example"}
+    cfg.profile_map["agent_user_ids"] = {"growth1": "growth-specialist-example", "product1": "product-lead-example"}
     calls = []
     payload = _task_payload("Product definition is complete; Growth can proceed with Path B.")
     payload["comment"]["user"] = {"id": "product1", "username": "Product-Lead"}
@@ -216,16 +216,16 @@ def test_agent_authored_cross_agent_handoff_wakes_target_owner(monkeypatch):
     response = RouterApp(cfg).handle_payload(payload)
 
     assert response["status"] == "dispatch"
-    assert response["profile"] == "growth-specialist-chessmentor"
-    assert calls[0].profile == "growth-specialist-chessmentor"
+    assert response["profile"] == "growth-specialist-example"
+    assert calls[0].profile == "growth-specialist-example"
     assert "cross-agent handoff" in calls[0].reason
 
 
 def test_duplicate_webhook_posts_claim_dedupe_before_spawning_direct_reply(monkeypatch):
     monkeypatch.delenv("CLICKUP_API_TOKEN", raising=False)
     STATE.seen.clear()
-    cfg = WorkspaceConfig(name="chessmentor", company_slug="chessmentor", list_ids=["l1"], kanban_board="chessmentor", dry_run=False)
-    cfg.profile_map["clickup_user_ids"] = {"u1": "growth-specialist-chessmentor"}
+    cfg = WorkspaceConfig(name="example", company_slug="example", list_ids=["l1"], kanban_board="example", dry_run=False)
+    cfg.profile_map["clickup_user_ids"] = {"u1": "growth-specialist-example"}
     calls = []
 
     def slow_direct_reply(workspace, decision):

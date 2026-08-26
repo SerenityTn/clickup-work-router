@@ -17,7 +17,7 @@ def test_preview_runs_ephemeral_http_dry_run_without_kanban_mutation(monkeypatch
     monkeypatch.setattr("clickup_work_router.dispatch.kanban.subprocess.run", forbid_subprocess)
     monkeypatch.setattr("clickup_work_router.dispatch.kanban.subprocess.Popen", forbid_subprocess)
 
-    result = run_preview(profile="founder")
+    result = run_preview(profile="example")
 
     assert result["ok"] is True
     assert result["health"]["dry_run"] is True
@@ -27,7 +27,7 @@ def test_preview_runs_ephemeral_http_dry_run_without_kanban_mutation(monkeypatch
         "webhook_secret": False,
     }
     assert result["routing"]["status"] == "dispatch"
-    assert result["routing"]["profile"] == "founder"
+    assert result["routing"]["profile"] == "example"
     assert result["routing"]["dry_run"] is True
     assert result["dry_run_enforced"] is True
     assert "kanban_mutated" not in result
@@ -36,7 +36,7 @@ def test_preview_runs_ephemeral_http_dry_run_without_kanban_mutation(monkeypatch
 
 def test_preview_cli_stdout_is_machine_readable_json():
     completed = subprocess.run(
-        [sys.executable, "-m", "clickup_work_router.preview", "--profile", "founder"],
+        [sys.executable, "-m", "clickup_work_router.preview", "--profile", "example"],
         check=True,
         capture_output=True,
         text=True,

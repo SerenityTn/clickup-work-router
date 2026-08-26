@@ -96,7 +96,7 @@ def _create_git_snapshot(source: Path, snapshot: Path, *, git_bin: str, env: dic
     )
 
 
-def run_isolated_lifecycle(source_root: str | Path, *, profile: str = "founder") -> dict[str, Any]:
+def run_isolated_lifecycle(source_root: str | Path, *, profile: str = "example") -> dict[str, Any]:
     """Install, discover, exercise, and remove the plugin inside a random temporary Hermes home."""
     source = Path(source_root).expanduser().resolve()
     if not source.is_dir():
@@ -210,7 +210,7 @@ def run_isolated_lifecycle(source_root: str | Path, *, profile: str = "founder")
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-root", type=Path, default=Path(__file__).resolve().parents[1])
-    parser.add_argument("--profile", default="founder")
+    parser.add_argument("--profile", default="example")
     args = parser.parse_args(argv)
     try:
         result = run_isolated_lifecycle(args.source_root, profile=args.profile)

@@ -11,7 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
 from clickup_work_router.adapters.clickup import ClickUpClient, build_work_event, extract_task_id, verify_signature
-from clickup_work_router.config import WorkspaceConfig, apply_env_file_to_environ, load_config
+from clickup_work_router.config import LEGACY_DEFAULT_WORKSPACE, WorkspaceConfig, apply_env_file_to_environ, load_config
 from clickup_work_router.core.comment_triage import classify_comment_intent
 from clickup_work_router.core.routing import route_event
 from clickup_work_router.dispatch.kanban import append_comment_to_kanban, dispatch_direct_reply, dispatch_to_kanban, find_active_kanban_task
@@ -158,7 +158,7 @@ def make_handler(app: RouterApp, *, log_requests: bool = True):
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--workspace", default="chessmentor")
+    parser.add_argument("--workspace", default=LEGACY_DEFAULT_WORKSPACE)
     parser.add_argument("--env-file")
     parser.add_argument("--config")
     parser.add_argument("--host", default="127.0.0.1")

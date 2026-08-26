@@ -44,7 +44,7 @@ def _post_json(url: str, payload: dict[str, Any]) -> dict[str, Any]:
         return json.load(response)
 
 
-def run_preview(profile: str = "founder") -> dict[str, Any]:
+def run_preview(profile: str = "example") -> dict[str, Any]:
     """Exercise the real loopback HTTP path while forcing dry-run dispatch."""
     event_id = f"preview-{uuid.uuid4().hex}"
     task = {
@@ -92,7 +92,7 @@ def run_preview(profile: str = "founder") -> dict[str, Any]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--profile", default="founder")
+    parser.add_argument("--profile", default="example")
     args = parser.parse_args(argv)
     result = run_preview(args.profile)
     print(json.dumps(result, indent=2))
