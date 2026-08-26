@@ -1,6 +1,6 @@
 # ClickUp Work Router Hermes Plugin
 
-First working v1 skeleton for routing ClickUp webhook work items into Hermes Kanban.
+A credential-safe Hermes plugin that normalizes selected ClickUp webhook work, routes it to the appropriate Hermes profile, and dispatches it into native Hermes Kanban. Preview and contributor workflows default to dry-run operation.
 
 ## Scope
 
@@ -35,11 +35,19 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for isolated setup, credential-free pre
 
 ## Native installation and isolated preview
 
-Use Hermes' supported installer for the Python/dashboard plugin. Keep it disabled until its backend and UI have been reviewed:
+Use Hermes' supported installer for the Python/dashboard plugin. Installation is disabled by default:
 
 ```bash
 hermes plugins install SerenityTn/clickup-work-router --no-enable
 ```
+
+After reviewing the installed code and supplying your own dry-run configuration, enable the regular plugin without granting built-in tool replacement:
+
+```bash
+hermes plugins enable clickup-work-router --no-allow-tool-override
+```
+
+Plugin activation is a code-execution decision and may require restarting the relevant Hermes process. Do not enable it with production ClickUp credentials until signed-webhook parity has been validated for your payloads.
 
 The native Desktop page is a separate trusted-JavaScript surface. Installing it remains an explicit opt-in action:
 
@@ -52,7 +60,7 @@ cp desktop-plugin/plugin.js "$HERMES_HOME/desktop-plugins/clickup-work-router/pl
 For development validation, run the fully disposable lifecycle instead of touching a real profile:
 
 ```bash
-python3 -m clickup_work_router.isolated_preview --profile founder
+python3 -m clickup_work_router.isolated_preview --profile example
 ```
 
 The lifecycle creates an immutable temporary Git commit from the staged index—without copying mutable worktree files—and a random Hermes home, invokes `hermes plugins install file://… --no-enable`, verifies structured native discovery, installs the Desktop artifact only from that installed snapshot into the temporary home without starting a Desktop runtime, submits a synthetic webhook through the no-credential `DRY_RUN=true` preview, removes both surfaces, and destroys the complete temporary home. It does not edit or enable plugins in the active profile. Tests forbid the router's current `subprocess.run` and `subprocess.Popen` dispatch paths during preview rather than claiming to observe external Kanban state.
@@ -62,12 +70,22 @@ The lifecycle creates an immutable temporary Git commit from the staged index—
 Do not stop or modify production routers during skeleton validation.
 
 ```bash
-cd /home/sysadmin/.hermes/profiles/founder/workspace/clickup-work-router
-DRY_RUN=true CLICKUP_ROUTER_PORT=8765 python3 -m clickup_work_router.service --workspace example --env-file ~/.hermes/clickup-work-router/example.env
-curl -s http://127.0.0.1:8765/health
+git clone https://github.com/SerenityTn/clickup-work-router.git
+cd clickup-work-router
+set -e
+PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()')
+DRY_RUN=true CLICKUP_ROUTER_PORT="$PORT" python3 -m clickup_work_router.service --workspace example --env-file examples/workspace.env.example &
+ROUTER_PID=$!
+trap 'kill "$ROUTER_PID" 2>/dev/null || true' EXIT
+curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 0 --max-time 10 "http://127.0.0.1:$PORT/health"
+kill "$ROUTER_PID"
+wait "$ROUTER_PID" 2>/dev/null || true
+trap - EXIT
 ```
 
 The service rejects unsigned webhooks when `DRY_RUN=false`. In dry-run mode only, it may accept unsigned local test payloads so you can validate routing without exposing a production endpoint.
+
+For backward compatibility, callers that omit `--workspace` still receive the historical implicit workspace. New installations should always pass an explicit neutral workspace name, as above. Changing the implicit default is reserved for a separately documented versioned migration.
 
 ## Configuration
 
@@ -88,9 +106,27 @@ Secrets are never committed. Env names used by v1:
 
 Dashboard/API output reports secret presence booleans only, not values.
 
+## Uninstall and cleanup
+
+Remove the regular plugin through Hermes' native lifecycle:
+
+```bash
+hermes plugins remove clickup-work-router
+```
+
+If you explicitly copied the separate Desktop artifact, remove only that plugin's file and then its now-empty directory:
+
+```bash
+HERMES_HOME="${HERMES_HOME:-$HOME/.hermes}"
+rm "$HERMES_HOME/desktop-plugins/clickup-work-router/plugin.js"
+rmdir "$HERMES_HOME/desktop-plugins/clickup-work-router"
+```
+
+See [`SECURITY.md`](SECURITY.md) for trust boundaries and private vulnerability reporting.
+
 ## Gaps for v1.1+
 
 - Add native Kanban upsert-by-external-ref if CLI support differs from assumed flags.
 - Add optional ClickUp status/comment sync policy.
 - Add replay endpoint with explicit confirmation.
-- Run parity tests against sanitized ChessMentor production-like payloads before cutover.
+- Run parity tests against sanitized production-like ClickUp payloads before cutover.

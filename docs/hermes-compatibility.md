@@ -48,7 +48,7 @@ A local service smoke test used:
 
 - board: `default`;
 - synthetic ClickUp task/list/user identifiers;
-- mapped target profile: `founder`;
+- mapped target profile: a synthetic test profile;
 - `DRY_RUN=true`;
 - unsigned loopback-only HTTP.
 
@@ -56,7 +56,7 @@ Observed results:
 
 - `GET /health` returned HTTP 200 with `dry_run: true`;
 - `POST /clickup/compatibility-smoke` returned HTTP 200;
-- routing returned `status: dispatch`, `profile: founder`, and `dry_run: true`;
+- routing returned `status: dispatch`, the configured synthetic profile, and `dry_run: true`;
 - the test server was terminated after verification;
 - no Hermes Kanban task was created.
 
@@ -103,5 +103,5 @@ The only process diagnostics were expected headless Linux D-Bus warnings and a f
 ## Remaining compatibility risks
 
 1. ClickUp API hydration and signed-webhook parity still need sanitized production-like payloads before any non-dry-run cutover.
-2. Hosted CI is defined with immutable action SHAs across Python 3.11–3.13, but it remains unobserved until the approval-gated feature branch is published.
+2. Hosted CI passed on the reviewed PR head (`31226899863`) and again on merged `main` (`31227293980`) across Python 3.11–3.13, JavaScript contracts, and the Hermes Agent 0.19.0 native lifecycle; both final runs had zero check-run annotations.
 3. Enabling either UI outside a disposable profile remains an explicit trust/configuration action and is not automated.

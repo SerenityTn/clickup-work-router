@@ -14,14 +14,14 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_isolated_lifecycle_uses_native_hermes_installer_and_cleans_up():
-    result = run_isolated_lifecycle(REPO_ROOT, profile="founder")
+    result = run_isolated_lifecycle(REPO_ROOT, profile="example")
 
     assert result["ok"] is True
     assert result["installer"] == "hermes plugins install"
     assert result["regular_plugin"]["discovered"] is True
     assert result["regular_plugin"]["enabled"] is False
     assert result["desktop_plugin"]["installed"] is True
-    assert result["preview"]["routing"]["profile"] == "founder"
+    assert result["preview"]["routing"]["profile"] == "example"
     assert result["preview"]["routing"]["dry_run"] is True
     assert result["preview"]["dry_run_enforced"] is True
     assert "kanban_mutated" not in result["preview"]
@@ -59,7 +59,7 @@ def test_isolated_lifecycle_ignores_ambient_git_control_environment(tmp_path, mo
     monkeypatch.setenv("GIT_WORK_TREE", str(tmp_path / "escaped-worktree"))
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(tmp_path / "attacker.gitconfig"))
 
-    result = run_isolated_lifecycle(REPO_ROOT, profile="founder")
+    result = run_isolated_lifecycle(REPO_ROOT, profile="example")
 
     assert result["ok"] is True
     assert not escaped_git_dir.exists()

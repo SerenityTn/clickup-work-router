@@ -1,7 +1,9 @@
 from pathlib import Path
 import os
+import re
+import subprocess
 
-from clickup_work_router.config import apply_env_file_to_environ, load_workspace_from_env
+from clickup_work_router.config import apply_env_file_to_environ, env_bool, load_workspace_from_env
 from clickup_work_router.service import RouterApp, router_token_is_valid
 
 
@@ -50,6 +52,7 @@ def test_example_environment_contains_no_credential_values():
 
     assert values["DRY_RUN"] == "true"
     assert "CLICKUP_ROUTER_HOST" not in values
+    assert "CLICKUP_ROUTER_PORT" not in values
     for key in (
         "CLICKUP_TEAM_ID",
         "CLICKUP_API_TOKEN",
@@ -57,6 +60,90 @@ def test_example_environment_contains_no_credential_values():
         "ROUTER_SHARED_TOKEN",
     ):
         assert values[key] == ""
+
+
+def test_public_readme_does_not_expose_maintainer_workspace_paths():
+    readme = (REPO_ROOT / "README.md").read_text()
+
+    maintainer_workspace = "/home/" + "sysadmin/.hermes/profiles/founder/workspace"
+    assert maintainer_workspace not in readme
+
+
+def test_public_docs_use_neutral_examples_and_current_hosted_evidence():
+    readme = (REPO_ROOT / "README.md").read_text()
+    contributing = (REPO_ROOT / "CONTRIBUTING.md").read_text()
+    compatibility = (REPO_ROOT / "docs" / "hermes-compatibility.md").read_text()
+
+    assert ("Chess" + "Mentor") not in readme
+    assert "--profile founder" not in readme
+    assert "--profile founder" not in contributing
+    assert "profile: founder" not in compatibility
+    assert "remains unobserved" not in compatibility
+    assert "31227293980" in compatibility
+
+
+def test_public_readme_documents_native_enablement_and_cleanup():
+    readme = (REPO_ROOT / "README.md").read_text()
+
+    assert "hermes plugins enable clickup-work-router --no-allow-tool-override" in readme
+    assert "hermes plugins remove clickup-work-router" in readme
+    assert "[`SECURITY.md`](SECURITY.md)" in readme
+
+
+def test_public_readme_side_by_side_command_uses_repository_example():
+    readme = (REPO_ROOT / "README.md").read_text()
+
+    assert "--env-file examples/workspace.env.example" in readme
+    assert "--env-file ~/.hermes/clickup-work-router/example.env" not in readme
+    assert "set -e" in readme
+    assert "PORT=$(python3 -c" in readme
+    assert 'CLICKUP_ROUTER_PORT="$PORT"' in readme
+    assert 'ROUTER_PID=$!' in readme
+    assert "trap 'kill \"$ROUTER_PID\" 2>/dev/null || true' EXIT" in readme
+    assert "--retry 10" in readme
+    assert "--max-time 10" in readme
+    assert 'http://127.0.0.1:$PORT/health' in readme
+    assert 'kill "$ROUTER_PID"' in readme
+    assert 'wait "$ROUTER_PID"' in readme
+    assert "PORT=18765" not in readme
+    assert "CLICKUP_ROUTER_PORT=8765" not in readme
+
+
+def test_public_tree_uses_neutral_workspace_examples():
+    tracked = subprocess.check_output(
+        ["git", "ls-files", "-z"], cwd=REPO_ROOT
+    ).decode().split("\0")
+    text_by_path = {}
+    for relative in tracked:
+        if not relative:
+            continue
+        try:
+            text_by_path[relative] = (REPO_ROOT / relative).read_text()
+        except UnicodeDecodeError:
+            continue
+
+    maintainer_home = "/home/" + "sysadmin/"
+    assert all(maintainer_home not in text for text in text_by_path.values())
+
+    legacy_name = "chess" + "mentor"
+    legacy_paths = sorted(
+        path for path, text in text_by_path.items() if legacy_name in text.lower()
+    )
+    assert legacy_paths == ["clickup_work_router/config.py"]
+
+    fixture_paths = [
+        REPO_ROOT / "tests" / "test_config.py",
+        REPO_ROOT / "tests" / "test_routing.py",
+        REPO_ROOT / "tests" / "test_service.py",
+    ]
+    fixture_text = "\n".join(path.read_text() for path in fixture_paths)
+    assert re.findall(r"\b\d{7,}\b", fixture_text) == []
+
+
+def test_explicit_empty_environment_does_not_fall_back_to_ambient(monkeypatch):
+    monkeypatch.setenv("SYNTHETIC_BOOL", "false")
+
+    assert env_bool("SYNTHETIC_BOOL", default=True, env={}) is True
 
 
 def test_documented_router_token_is_consumed_by_runtime(tmp_path, monkeypatch):

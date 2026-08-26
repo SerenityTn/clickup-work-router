@@ -35,7 +35,7 @@ The routing core uses the Python standard library. FastAPI is supplied by Hermes
 Run the credential-free routing preview:
 
 ```bash
-python -m clickup_work_router.preview --profile founder
+python -m clickup_work_router.preview --profile example
 ```
 
 It uses synthetic ClickUp data, loopback-only ephemeral HTTP, and enforced dry-run behavior. It must not invoke the current Kanban subprocess dispatch paths.

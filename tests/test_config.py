@@ -1,29 +1,33 @@
-from clickup_work_router.config import apply_env_file_to_environ, load_workspace_from_env
+from clickup_work_router.config import (
+    LEGACY_DEFAULT_WORKSPACE,
+    apply_env_file_to_environ,
+    load_workspace_from_env,
+)
 
 
-def test_load_chessmentor_env_compat():
+def test_load_example_env_compat():
     env = {
         "CLICKUP_LIST_IDS": "l1,l2",
-        "KANBAN_BOARD": "chessmentor",
-        "CLICKUP_USER_PROFILE_MAP": "188473659:founder,u2:product-lead-chessmentor",
+        "KANBAN_BOARD": "example",
+        "CLICKUP_USER_PROFILE_MAP": "user-1:founder,u2:product-lead-example",
         "CLICKUP_ROUTER_PORT": "9999",
         "DRY_RUN": "true",
     }
-    cfg = load_workspace_from_env("chessmentor", environ=env)
-    assert cfg.company_slug == "chessmentor"
+    cfg = load_workspace_from_env("example", environ=env)
+    assert cfg.company_slug == "example"
     assert cfg.list_ids == ["l1", "l2"]
-    assert cfg.kanban_board == "chessmentor"
-    assert cfg.profile_map["clickup_user_ids"]["188473659"] == "founder"
+    assert cfg.kanban_board == "example"
+    assert cfg.profile_map["clickup_user_ids"]["user-1"] == "founder"
     assert cfg.port == 9999
     assert cfg.dry_run is True
     assert cfg.secret_presence(env) == {"clickup_team_id": False, "clickup_token": False, "webhook_secret": False}
 
 
-def test_loads_legacy_chessmentor_env_names():
+def test_loads_legacy_example_env_names():
     env = {
-        "COMPANY_SLUG": "chessmentor",
-        "CLICKUP_LIST_ID": "901217753167",
-        "CLICKUP_ASSIGNEE_PROFILE_MAP_JSON": '{"296612861":"ceo-chessmentor","99775275":"product-lead-chessmentor"}',
+        "COMPANY_SLUG": "example",
+        "CLICKUP_LIST_ID": "list-1",
+        "CLICKUP_ASSIGNEE_PROFILE_MAP_JSON": '{"user-2":"ceo-example","user-3":"product-lead-example"}',
         "COMMENT_MENTION_ROUTING": "true",
         "COMMENT_WATCHER_ROUTING": "false",
         "COMMENT_WATCHER_ONLY_ASSIGNEES": "false",
@@ -31,20 +35,20 @@ def test_loads_legacy_chessmentor_env_names():
         "CLICKUP_ASSIGNMENT_SOURCE": "custom_field",
         "CLICKUP_STATUS_ON_TRIGGER": "doing",
         "CLICKUP_COMPLETE_STATUS": "shipped",
-        "ROUTER_PATH": "/legacy/chessmentor",
+        "ROUTER_PATH": "/legacy/example",
         "ROUTER_PORT": "8787",
         "DRY_RUN": "false",
     }
 
-    cfg = load_workspace_from_env("chessmentor", environ=env)
+    cfg = load_workspace_from_env("example", environ=env)
 
     assert cfg.profile_map["clickup_user_ids"] == {
-        "296612861": "ceo-chessmentor",
-        "99775275": "product-lead-chessmentor",
+        "user-2": "ceo-example",
+        "user-3": "product-lead-example",
     }
     assert cfg.profile_map["agent_user_ids"] == {
-        "296612861": "ceo-chessmentor",
-        "99775275": "product-lead-chessmentor",
+        "user-2": "ceo-example",
+        "user-3": "product-lead-example",
     }
     assert cfg.comment_routing.mention_routing is True
     assert cfg.comment_routing.watcher_routing is False
@@ -53,9 +57,30 @@ def test_loads_legacy_chessmentor_env_names():
     assert cfg.assignment_source == "custom_field"
     assert cfg.status_on_trigger == "doing"
     assert cfg.complete_status == "shipped"
-    assert cfg.webhook_path == "/legacy/chessmentor"
+    assert cfg.webhook_path == "/legacy/example"
     assert cfg.port == 8787
     assert cfg.dry_run is False
+
+
+def test_environment_overrides_environment_file(tmp_path):
+    env_file = tmp_path / "router.env"
+    env_file.write_text("DRY_RUN=false\nCLICKUP_ROUTER_PORT=1111\n")
+
+    cfg = load_workspace_from_env(
+        "example",
+        env_file=env_file,
+        environ={"DRY_RUN": "true", "CLICKUP_ROUTER_PORT": "2222"},
+    )
+
+    assert cfg.dry_run is True
+    assert cfg.port == 2222
+
+
+def test_implicit_workspace_remains_backward_compatible():
+    cfg = load_workspace_from_env(environ={"DRY_RUN": "true"})
+
+    assert cfg.name == LEGACY_DEFAULT_WORKSPACE
+    assert cfg.company_name == LEGACY_DEFAULT_WORKSPACE
 
 
 def test_apply_env_file_to_environ_loads_runtime_secrets(tmp_path, monkeypatch):
@@ -68,7 +93,7 @@ def test_apply_env_file_to_environ_loads_runtime_secrets(tmp_path, monkeypatch):
 
     assert loaded["CLICKUP_API_TOKEN"] == "token-value"
     assert loaded["CLICKUP_WEBHOOK_SECRET"] == "secret-value"
-    assert load_workspace_from_env("chessmentor").secret_presence() == {
+    assert load_workspace_from_env("example").secret_presence() == {
         "clickup_team_id": False,
         "clickup_token": True,
         "webhook_secret": True,
