@@ -5,6 +5,7 @@ import hashlib
 import json
 import re
 import urllib.error
+import urllib.parse
 import urllib.request
 from typing import Any
 
@@ -90,6 +91,35 @@ def extract_explicit_mentions(payload: dict[str, Any], comment_text: str = "") -
                 if alias:
                     aliases.add(str(alias).lstrip("@").lower())
     return sorted(aliases)
+
+
+def extract_assignee_changes(payload: dict[str, Any]) -> tuple[list[ExternalUser], list[ExternalUser]]:
+    """Return (added, removed) users from ClickUp ``taskAssigneeUpdated`` history.
+
+    ClickUp reports one history item per change: ``assignee_add`` carries the
+    new user in ``after`` and ``assignee_rem`` carries the removed user in
+    ``before``.
+    """
+    items: list[Any] = []
+    if isinstance(payload.get("history_items"), list):
+        items.extend(payload["history_items"])
+    if isinstance(payload.get("history_item"), dict):
+        items.append(payload["history_item"])
+    added: list[ExternalUser] = []
+    removed: list[ExternalUser] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        field_name = str(item.get("field") or "")
+        if field_name == "assignee_add":
+            user = ExternalUser.from_mapping(item.get("after") if isinstance(item.get("after"), dict) else None)
+            if user:
+                added.append(user)
+        elif field_name == "assignee_rem":
+            user = ExternalUser.from_mapping(item.get("before") if isinstance(item.get("before"), dict) else None)
+            if user:
+                removed.append(user)
+    return added, removed
 
 
 def _users(items: Any) -> list[ExternalUser]:
@@ -185,6 +215,7 @@ def task_to_work_item(task: dict[str, Any], workspace_id: str, source_system: st
 def build_work_event(payload: dict[str, Any], task: dict[str, Any], workspace_id: str) -> WorkEvent:
     comment_text, author, comment_id = extract_comment(payload)
     mentions = extract_explicit_mentions(payload, comment_text)
+    added, removed = extract_assignee_changes(payload)
     event_id = str(payload.get("event_id") or comment_id or payload.get("id") or extract_task_id(payload))
     event_time = str(payload.get("date") or payload.get("event_time") or "")
     history_items = payload.get("history_items")
@@ -203,6 +234,8 @@ def build_work_event(payload: dict[str, Any], task: dict[str, Any], workspace_id
         comment_text=comment_text,
         mentioned_aliases=mentions,
         raw={"payload": payload, "comment_id": comment_id},
+        assignees_added=added,
+        assignees_removed=removed,
     )
 
 
@@ -211,10 +244,13 @@ class ClickUpClient:
         self.token = token
         self.base_url = base_url.rstrip("/")
 
-    def _request(self, method: str, path: str, data: dict[str, Any] | None = None) -> dict[str, Any]:
+    def _request(self, method: str, path: str, data: dict[str, Any] | None = None, query: dict[str, Any] | None = None) -> dict[str, Any]:
         body = json.dumps(data).encode() if data is not None else None
+        url = self.base_url + path
+        if query:
+            url += "?" + urllib.parse.urlencode(query, doseq=True)
         req = urllib.request.Request(
-            self.base_url + path,
+            url,
             data=body,
             method=method,
             headers={"Authorization": self.token, "Content-Type": "application/json"},
@@ -235,5 +271,24 @@ class ClickUpClient:
     def update_status(self, task_id: str, status: str) -> dict[str, Any]:
         return self._request("PUT", f"/task/{task_id}", {"status": status})
 
-    def post_comment(self, task_id: str, text: str) -> dict[str, Any]:
-        return self._request("POST", f"/task/{task_id}/comment", {"comment_text": text})
+    def post_comment(self, task_id: str, text: str, notify_all: bool = False) -> dict[str, Any]:
+        return self._request("POST", f"/task/{task_id}/comment", {"comment_text": text, "notify_all": notify_all})
+
+    def list_tasks(self, list_id: str, *, updated_after_ms: int | None = None, page: int = 0) -> dict[str, Any]:
+        """One page of open tasks in a list, optionally only recently updated ones."""
+        query: dict[str, Any] = {"include_closed": "false", "subtasks": "true", "page": page}
+        if updated_after_ms:
+            query["date_updated_gt"] = int(updated_after_ms)
+        return self._request("GET", f"/list/{list_id}/task", query=query)
+
+    def list_webhooks(self, team_id: str) -> list[dict[str, Any]]:
+        data = self._request("GET", f"/team/{team_id}/webhook")
+        return list(data.get("webhooks") or [])
+
+    def create_webhook(self, team_id: str, endpoint: str, events: list[str], **scope: str) -> dict[str, Any]:
+        payload: dict[str, Any] = {"endpoint": endpoint, "events": events}
+        payload.update({k: v for k, v in scope.items() if v})
+        return self._request("POST", f"/team/{team_id}/webhook", payload)
+
+    def update_webhook(self, webhook_id: str, endpoint: str, events: list[str], status: str = "active") -> dict[str, Any]:
+        return self._request("PUT", f"/webhook/{webhook_id}", {"endpoint": endpoint, "events": events, "status": status})

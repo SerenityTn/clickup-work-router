@@ -24,7 +24,7 @@ except Exception:  # pragma: no cover - lets unit tests run without FastAPI
     APIRouter = None  # type: ignore[assignment]
 
 from clickup_work_router.config import LEGACY_DEFAULT_WORKSPACE, load_config
-from clickup_work_router.state import STATE
+from clickup_work_router.state import STATE, STATE_DB_ENV
 
 router = APIRouter() if APIRouter is not None else None
 
@@ -51,7 +51,20 @@ def redact(value: Any) -> Any:
     return value
 
 
+def _attach_shared_state() -> None:
+    """Read the router service's state file when one is configured.
+
+    The dashboard runs inside the Hermes gateway, not the router process, so its
+    in-memory store is always empty. Pointing it at the service's SQLite file
+    (``CLICKUP_ROUTER_STATE_DB``) shows real events, links, and reconcile runs.
+    """
+    path = os.environ.get(STATE_DB_ENV, "").strip()
+    if path and STATE.path != path:
+        STATE.configure(path)
+
+
 def get_status(workspace: str = LEGACY_DEFAULT_WORKSPACE, env_file: str | None = None) -> dict[str, Any]:
+    _attach_shared_state()
     cfg = load_config(env_file=env_file, workspace=workspace)
     workspaces = {name: ws.sanitized(os.environ) for name, ws in cfg.workspaces.items()}
     last = STATE.recent(workspace, 1)
@@ -62,6 +75,8 @@ def get_status(workspace: str = LEGACY_DEFAULT_WORKSPACE, env_file: str | None =
         "last_event_time": last[0]["time"] if last else "",
         "last_error_summary": STATE.last_error,
         "recent_events": STATE.recent(workspace, 10),
+        "links": STATE.link_counts(workspace),
+        "reconcile": STATE.get_meta(f"reconcile:{workspace}") or {},
     })
 
 
@@ -71,6 +86,7 @@ def get_workspaces(env_file: str | None = None) -> list[dict[str, Any]]:
 
 
 def get_events(workspace: str | None = None, limit: int = 25) -> list[dict[str, Any]]:
+    _attach_shared_state()
     return redact(STATE.recent(workspace, limit))
 
 

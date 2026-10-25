@@ -10,6 +10,8 @@ Thanks for helping make selected ClickUp work safely routable into Hermes Kanban
 
 Changes must preserve these boundaries. The router must not become a replacement ClickUp client, durable worker queue, or second Kanban implementation.
 
+ClickUp write-back is limited to execution milestones: dispatch, blocked, review, and completion. The reconcile loop is a sync loop. It reads Kanban state and writes only to ClickUp and Kanban comments; it never creates, retries, or completes Kanban work. The optional SQLite state stores dedupe keys, ClickUp-to-Kanban links, and an event log. It is not an execution queue.
+
 ## Development setup
 
 Requirements:

@@ -67,3 +67,19 @@ def test_extract_dependencies_preserves_clickup_dependency_direction():
         ("upstream", "blocks_current"),
         ("downstream", "current_blocks"),
     ]
+
+
+def test_assignee_history_items_become_added_and_removed_users():
+    payload = {
+        "event": "taskAssigneeUpdated",
+        "task_id": "t1",
+        "history_items": [
+            {"id": "h1", "field": "assignee_add", "user": {"id": "human1"}, "after": {"id": "u2", "username": "Growth"}},
+            {"id": "h2", "field": "assignee_rem", "user": {"id": "human1"}, "before": {"id": "u1"}},
+        ],
+    }
+    event = build_work_event(payload, {"id": "t1", "name": "T", "list": {"id": "l1"}, "status": {"status": "open"}}, "ws")
+
+    assert [user.id for user in event.assignees_added] == ["u2"]
+    assert [user.id for user in event.assignees_removed] == ["u1"]
+    assert event.author.id == "human1"

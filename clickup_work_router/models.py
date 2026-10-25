@@ -68,11 +68,13 @@ class WorkEvent:
     comment_text: str = ""
     mentioned_aliases: list[str] = field(default_factory=list)
     raw: dict[str, Any] = field(default_factory=dict)
+    assignees_added: list[ExternalUser] = field(default_factory=list)
+    assignees_removed: list[ExternalUser] = field(default_factory=list)
 
 
 @dataclass
 class RouteDecision:
-    action: Literal["dispatch", "ignore", "blocked"]
+    action: Literal["dispatch", "ignore", "blocked", "unassign"]
     profile: str = ""
     reason: str = ""
     dedupe_key: str = ""
