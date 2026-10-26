@@ -26,7 +26,9 @@ Include the affected commit, platform, reproduction steps, observed impact, and 
 - `DRY_RUN=true` is the development and preview default.
 - Unsigned webhooks are accepted only for loopback dry-run validation.
 - Secrets are read from runtime configuration and must never appear in repository files, UI payloads, logs, fixtures, or reports.
-- Dashboard APIs expose redacted configuration and secret-presence booleans only.
+- Dashboard APIs expose redacted configuration and secret-presence booleans only. Router tokens in `CLICKUP_WEBHOOK_ENDPOINT` are redacted.
+- Webhook registration writes a new signing secret only to an explicit owner-only file and never prints it.
+- ClickUp write-back is disabled in dry-run mode, and every router comment carries a marker that the router itself ignores to prevent loops.
 - The regular Hermes plugin is installed disabled unless a human explicitly enables it.
 - Native Desktop JavaScript is a separate trusted surface and remains explicit opt-in.
 - The isolated lifecycle uses a staged-index Git snapshot, strict temporary environment, native Hermes install/remove operations, and complete temporary-profile cleanup.

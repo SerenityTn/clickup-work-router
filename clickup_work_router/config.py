@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, asdict
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -56,7 +57,25 @@ class WorkspaceConfig:
     status_on_trigger: str = "in progress"
     complete_status: str = "complete"
     route_all_task_updates: bool = False
+    # A human (re)assigning an existing ClickUp task to a mapped agent routes it.
+    route_assignee_changes: bool = True
     comment_routing: CommentRoutingConfig = field(default_factory=CommentRoutingConfig)
+    # ClickUp write-back: keep the human layer current with execution progress.
+    writeback_enabled: bool = True
+    comment_on_dispatch: bool = True
+    update_status_on_complete: bool = True
+    review_status: str = ""
+    # Proactive reconciliation between Kanban execution state and ClickUp.
+    reconcile_interval_seconds: int = 300
+    reconcile_max_links: int = 25
+    blocked_renotify_hours: float = 24.0
+    sweep_lists: bool = True
+    sweep_lookback_hours: float = 24.0
+    # Public URL ClickUp delivers to; enables webhook health checks when set.
+    webhook_endpoint: str = ""
+    webhook_auto_reactivate: bool = True
+    direct_reply_skill: str = "clickup-ai-team-workflow"
+    state_db: str = ""
     profile_map: dict[str, dict[str, str]] = field(default_factory=lambda: {
         "clickup_user_ids": {},
         "emails": {},
@@ -77,8 +96,14 @@ class WorkspaceConfig:
 
     def sanitized(self, env: dict[str, str] | None = None) -> dict[str, Any]:
         data = asdict(self)
+        data["webhook_endpoint"] = redact_url_token(self.webhook_endpoint)
         data["secrets"] = self.secret_presence(env)
         return data
+
+
+def redact_url_token(url: str) -> str:
+    """Hide a router token carried in a webhook endpoint query string."""
+    return re.sub(r"([?&]token=)[^&#\s]+", r"\1[REDACTED]", url or "")
 
 
 @dataclass
@@ -123,6 +148,13 @@ def _json_map_from_env(name: str, env: dict[str, str]) -> dict[str, str]:
     if not isinstance(data, dict):
         return {}
     return {str(key).strip(): str(value).strip() for key, value in data.items() if str(key).strip() and str(value).strip()}
+
+
+def _env_float(env: dict[str, str], name: str, default: float) -> float:
+    try:
+        return float(env.get(name, "") or default)
+    except ValueError:
+        return default
 
 
 def _env_first(env: dict[str, str], *names: str, default: str = "") -> str:
@@ -190,6 +222,20 @@ def load_workspace_from_env(name: str = LEGACY_DEFAULT_WORKSPACE, env_file: str 
         status_on_trigger=_env_first(env, "STATUS_ON_TRIGGER", "CLICKUP_STATUS_ON_TRIGGER", default="in progress"),
         complete_status=_env_first(env, "COMPLETE_STATUS", "CLICKUP_COMPLETE_STATUS", default="complete"),
         route_all_task_updates=env_bool("ROUTE_ALL_TASK_UPDATES", False, env),
+        route_assignee_changes=env_bool("ROUTE_ASSIGNEE_CHANGES", True, env),
+        writeback_enabled=env_bool("CLICKUP_WRITEBACK", True, env),
+        comment_on_dispatch=env_bool("COMMENT_ON_DISPATCH", True, env),
+        update_status_on_complete=env_bool("UPDATE_STATUS_ON_COMPLETE", True, env),
+        review_status=_env_first(env, "REVIEW_STATUS", "CLICKUP_REVIEW_STATUS", default=""),
+        reconcile_interval_seconds=int(_env_float(env, "RECONCILE_INTERVAL_SECONDS", 300)),
+        reconcile_max_links=int(_env_float(env, "RECONCILE_MAX_LINKS", 25)),
+        blocked_renotify_hours=_env_float(env, "BLOCKED_RENOTIFY_HOURS", 24.0),
+        sweep_lists=env_bool("SWEEP_LISTS", True, env),
+        sweep_lookback_hours=_env_float(env, "SWEEP_LOOKBACK_HOURS", 24.0),
+        webhook_endpoint=_env_first(env, "CLICKUP_WEBHOOK_ENDPOINT", default=""),
+        webhook_auto_reactivate=env_bool("WEBHOOK_AUTO_REACTIVATE", True, env),
+        direct_reply_skill=env.get("DIRECT_REPLY_SKILL", "clickup-ai-team-workflow"),
+        state_db=_env_first(env, "CLICKUP_ROUTER_STATE_DB", default=""),
         port=int(_env_first(env, "CLICKUP_ROUTER_PORT", "ROUTER_PORT", "PORT", default="8765")),
         dry_run=env_bool("DRY_RUN", True, env),
     )

@@ -109,3 +109,50 @@ def test_route_all_task_updates_false_ignores_non_comment_updates():
     decision = route_event(event(event_type="taskUpdated"), cfg())
     assert decision.action == "ignore"
     assert "task update routing disabled" in decision.reason
+
+
+def test_assignee_added_routes_to_new_mapped_profile():
+    decision = route_event(event(event_type="taskAssigneeUpdated", assignees_added=[ExternalUser(id="growth1")], author=ExternalUser(id="human1")), cfg())
+
+    assert decision.action == "dispatch"
+    assert decision.profile == "growth-specialist-example"
+    assert "assignee added" in decision.reason
+    assert decision.dedupe_key
+
+
+def test_agent_assignee_changes_allow_handoffs_but_not_self_assignment():
+    handoff = route_event(event(event_type="taskAssigneeUpdated", assignees_added=[ExternalUser(id="growth1")], author=ExternalUser(id="agent1")), cfg())
+    assert handoff.action == "dispatch"
+    assert "cross-agent handoff" in handoff.reason
+
+    self_assigned = route_event(event(event_type="taskAssigneeUpdated", assignees_added=[ExternalUser(id="growth1")], author=ExternalUser(id="growth1")), cfg())
+    assert self_assigned.action == "ignore"
+    assert "assigned itself" in self_assigned.reason
+
+
+def test_assignee_removed_produces_unassign_decision():
+    decision = route_event(event(event_type="taskAssigneeUpdated", assignees_removed=[ExternalUser(id="u1")]), cfg())
+
+    assert decision.action == "unassign"
+    assert decision.profile == "product-lead-example"
+    assert decision.should_dispatch is False
+
+
+def test_assignee_routing_can_be_disabled_and_ignores_unmapped_users():
+    config = cfg()
+    config.route_assignee_changes = False
+    disabled = route_event(event(event_type="taskAssigneeUpdated", assignees_added=[ExternalUser(id="growth1")]), config)
+    assert disabled.action == "ignore"
+
+    unmapped = route_event(event(event_type="taskAssigneeUpdated", assignees_added=[ExternalUser(id="stranger")]), cfg())
+    assert unmapped.action == "ignore"
+    assert "mapped profile" in unmapped.reason
+
+
+def test_router_authored_comments_never_route():
+    from clickup_work_router.core.routing import ROUTER_COMMENT_MARKER
+
+    decision = route_event(event(event_type="taskCommentPosted", comment_text=f"{ROUTER_COMMENT_MARKER} Routed to @ceo", author=ExternalUser(id="u1"), mentioned_aliases=["ceo"]), cfg())
+
+    assert decision.action == "ignore"
+    assert "router-authored" in decision.reason

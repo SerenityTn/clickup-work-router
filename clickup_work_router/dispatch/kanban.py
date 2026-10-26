@@ -27,6 +27,14 @@ class DispatchResult:
     stderr: str = ""
     returncode: int = 0
     dry_run: bool = False
+    kanban_task_id: str = ""
+
+
+# Hermes Kanban statuses (v0.19.0 `kanban list --status` choices) grouped by
+# what they mean for the ClickUp human layer.
+KANBAN_ACTIVE_STATUSES = {"triage", "todo", "ready", "running", "blocked", "review", "scheduled"}
+KANBAN_DONE_STATUSES = {"done"}
+KANBAN_ARCHIVED_STATUSES = {"archived"}
 
 
 def external_ref(config: WorkspaceConfig, decision: RouteDecision) -> str:
@@ -59,7 +67,21 @@ def _run_command(cmd: list[str], runner: Any = None, timeout: int = 120):
         return run(cmd, text=True, capture_output=True, check=False)
 
 
+def _parse_json(stdout: str) -> Any:
+    try:
+        return json.loads(stdout)
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
 def _cli_error(stdout: str, stderr: str, returncode: int) -> bool:
+    """Detect CLI failures, including errors some Kanban paths print with exit 0.
+
+    Valid JSON output is trusted: task bodies echoed in JSON can legitimately
+    contain words such as "error:" and must not be read as CLI failures.
+    """
+    if returncode == 0 and _parse_json(stdout) is not None:
+        return False
     combined = f"{stdout}\n{stderr}".lower()
     return returncode != 0 or any(
         marker in combined
@@ -73,8 +95,13 @@ def _cli_error(stdout: str, stderr: str, returncode: int) -> bool:
     )
 
 
-def find_active_kanban_task(config: WorkspaceConfig, decision: RouteDecision, runner: Any = None) -> str:
-    """Return the active Kanban task id for this ClickUp task/profile, if any."""
+def find_active_kanban_task(config: WorkspaceConfig, decision: RouteDecision, runner: Any = None, *, include_done: bool = False) -> str:
+    """Return the newest Kanban task id for this ClickUp task/profile, if any.
+
+    Only active tasks match by default. ``include_done`` also matches finished
+    tasks, so a catch-up sweep never re-dispatches work that already completed.
+    """
+    statuses = KANBAN_ACTIVE_STATUSES | KANBAN_DONE_STATUSES if include_done else KANBAN_ACTIVE_STATUSES
     ref = external_ref(config, decision)
     hermes_bin = os.environ.get("HERMES_BIN", "hermes")
     cmd = [hermes_bin, "kanban", "--board", config.kanban_board, "list", "--assignee", decision.profile, "--json"]
@@ -85,21 +112,47 @@ def find_active_kanban_task(config: WorkspaceConfig, decision: RouteDecision, ru
     stderr = getattr(proc, "stderr", "") or ""
     if _cli_error(stdout, stderr, getattr(proc, "returncode", 1)):
         return ""
-    try:
-        tasks = json.loads(stdout)
-    except json.JSONDecodeError:
+    tasks = _parse_json(stdout)
+    if not isinstance(tasks, list):
         return ""
-    active_statuses = {"ready", "running", "todo", "triage", "blocked"}
     matches = [
         task for task in tasks
         if isinstance(task, dict)
-        and task.get("status") in active_statuses
+        and task.get("status") in statuses
         and f"External-Ref: {ref}" in str(task.get("body") or "")
     ]
     if not matches:
         return ""
     matches.sort(key=lambda task: int(task.get("created_at") or 0), reverse=True)
     return str(matches[0].get("id") or "")
+
+
+def show_kanban_task(config: WorkspaceConfig, task_id: str, runner: Any = None) -> dict[str, Any] | None:
+    """Return `hermes kanban show --json` for a task, or None when unavailable."""
+    hermes_bin = os.environ.get("HERMES_BIN", "hermes")
+    cmd = [hermes_bin, "kanban", "--board", config.kanban_board, "show", task_id, "--json"]
+    proc = _run_command(cmd, runner=runner, timeout=60)
+    stdout = getattr(proc, "stdout", "") or ""
+    stderr = getattr(proc, "stderr", "") or ""
+    if _cli_error(stdout, stderr, getattr(proc, "returncode", 1)):
+        return None
+    data = _parse_json(stdout)
+    if not isinstance(data, dict) or not isinstance(data.get("task"), dict):
+        return None
+    return data
+
+
+def append_note_to_kanban(config: WorkspaceConfig, task_id: str, text: str, runner: Any = None) -> DispatchResult:
+    """Append router context to a Kanban task as a comment."""
+    hermes_bin = os.environ.get("HERMES_BIN", "hermes")
+    cmd = [hermes_bin, "kanban", "--board", config.kanban_board, "comment", task_id, text, "--author", "clickup-work-router"]
+    if config.dry_run:
+        return DispatchResult(True, cmd, f"append:{task_id}", text, task_id, dry_run=True, kanban_task_id=task_id)
+    proc = _run_command(cmd, runner=runner, timeout=60)
+    stdout = getattr(proc, "stdout", "") or ""
+    stderr = getattr(proc, "stderr", "") or ""
+    ok = not _cli_error(stdout, stderr, getattr(proc, "returncode", 1))
+    return DispatchResult(ok, cmd, f"append:{task_id}", text, task_id, stdout=stdout, stderr=stderr, returncode=getattr(proc, "returncode", 1), dry_run=False, kanban_task_id=task_id)
 
 
 def append_comment_to_kanban(config: WorkspaceConfig, decision: RouteDecision, task_id: str, runner: Any = None) -> DispatchResult:
@@ -113,15 +166,7 @@ def append_comment_to_kanban(config: WorkspaceConfig, decision: RouteDecision, t
         f"From: {author}\n"
         f"Comment: {decision.event.comment_text}\n"
     )
-    hermes_bin = os.environ.get("HERMES_BIN", "hermes")
-    cmd = [hermes_bin, "kanban", "--board", config.kanban_board, "comment", task_id, text, "--author", "clickup-work-router"]
-    if config.dry_run:
-        return DispatchResult(True, cmd, f"append:{task_id}", text, task_id, dry_run=True)
-    proc = _run_command(cmd, runner=runner, timeout=60)
-    stdout = getattr(proc, "stdout", "") or ""
-    stderr = getattr(proc, "stderr", "") or ""
-    ok = not _cli_error(stdout, stderr, getattr(proc, "returncode", 1))
-    return DispatchResult(ok, cmd, f"append:{task_id}", text, task_id, stdout=stdout, stderr=stderr, returncode=getattr(proc, "returncode", 1), dry_run=False)
+    return append_note_to_kanban(config, task_id, text, runner=runner)
 
 
 def dispatch_direct_reply(config: WorkspaceConfig, decision: RouteDecision, runner: Any = None) -> DispatchResult:
@@ -139,7 +184,10 @@ def dispatch_direct_reply(config: WorkspaceConfig, decision: RouteDecision, runn
         "If the comment is only a question/status/approval, answer it directly. If it materially changes execution, record the decision in ClickUp and leave any execution to the existing task/router."
     )
     hermes_bin = os.environ.get("HERMES_BIN", "hermes")
-    cmd = [hermes_bin, "-p", decision.profile, "-s", "clickup-ai-team-workflow", "chat", "-q", prompt]
+    cmd = [hermes_bin, "-p", decision.profile]
+    if config.direct_reply_skill:
+        cmd += ["-s", config.direct_reply_skill]
+    cmd += ["chat", "-q", prompt]
     if config.dry_run:
         return DispatchResult(True, cmd, f"direct-reply:{item.issue_id}", prompt, decision.dedupe_key or external_ref(config, decision), dry_run=True)
     if runner is not None:
@@ -165,6 +213,7 @@ def dispatch_to_kanban(config: WorkspaceConfig, decision: RouteDecision, dry_run
         "--assignee", decision.profile,
         "--idempotency-key", ref,
         "--created-by", "clickup-work-router",
+        "--json",
     ]
     use_dry_run = config.dry_run if dry_run is None else dry_run
     if use_dry_run:
@@ -188,28 +237,22 @@ def dispatch_to_kanban(config: WorkspaceConfig, decision: RouteDecision, dry_run
         )
     stdout = getattr(proc, "stdout", "") or ""
     stderr = getattr(proc, "stderr", "") or ""
-    combined = f"{stdout}\n{stderr}".lower()
+    returncode = getattr(proc, "returncode", 1)
     # Some Hermes Kanban validation paths currently print a `kanban: ...` error
     # but still exit 0. Treat those as dispatch failures so webhook delivery does
     # not appear successful while no Kanban task was created.
-    cli_reported_error = any(
-        marker in combined
-        for marker in (
-            "kanban: board",
-            "does not exist",
-            "usage: hermes kanban",
-            "error:",
-            "traceback",
-        )
-    )
+    cli_reported_error = _cli_error(stdout, stderr, returncode)
+    created = _parse_json(stdout)
+    kanban_task_id = str(created.get("id") or "") if isinstance(created, dict) else ""
     return DispatchResult(
-        ok=(proc.returncode == 0 and not cli_reported_error),
+        ok=(returncode == 0 and not cli_reported_error),
         command=cmd,
         title=title,
         body=body,
         external_ref=ref,
         stdout=stdout,
         stderr=stderr,
-        returncode=getattr(proc, "returncode", 1),
+        returncode=returncode,
         dry_run=False,
+        kanban_task_id=kanban_task_id,
     )

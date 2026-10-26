@@ -19,6 +19,10 @@ Verified against live CLI help and JSON output:
 - `hermes kanban --board <slug> create <title>` accepts `--body`, `--assignee`, `--idempotency-key`, and `--created-by`.
 - `hermes kanban --board <slug> list --assignee <profile> --json` returns a JSON array.
 - `hermes kanban --board <slug> comment <task-id> <text> --author <name>` remains valid.
+- `create ... --json` prints the created task as JSON. The router records its `id` to link the ClickUp task to the Kanban task. A repeated `--idempotency-key` returns the existing task's id.
+- `hermes kanban --board <slug> show <task-id> --json` returns `task`, `latest_summary`, `comments`, and `events`. The reconciler reads `task.status`, `latest_summary` or `task.result`, and the latest `blocked` event time.
+- Task statuses are `triage`, `todo`, `ready`, `running`, `blocked`, `review`, `scheduled`, `done`, and `archived`. The router treats all but `done` and `archived` as active.
+- JSON output can echo task bodies that contain words such as `error:`. The router trusts valid JSON output and applies its error-text heuristic only to non-JSON output.
 - The router defaults to `DRY_RUN=true`, so webhook smoke tests do not mutate a board.
 
 Current limitation: Hermes Kanban has no dedicated external-reference field. The router therefore stores a stable `External-Ref:` marker in the body and uses the event dedupe key as the Kanban idempotency key.
@@ -100,8 +104,21 @@ On 2026-08-07 the packaged Linux Hermes Desktop app was built from the assessed 
 
 The only process diagnostics were expected headless Linux D-Bus warnings and a forced-shutdown diagnostic after evidence collection; they did not affect renderer mounting or plugin API behavior.
 
+## Human-layer end-to-end checkpoint
+
+A local end-to-end run used a disposable `HERMES_HOME`, a real Hermes Agent v0.19.0 Kanban board, a synthetic in-process ClickUp client, and a temporary SQLite state file:
+
+- two synthetic `taskCreated` events created two real Kanban tasks, and the router linked each by its returned id;
+- a later `taskAssigneeUpdated` event for an already-linked task returned `already_active` and created nothing;
+- after the Kanban CLI completed one task and blocked the other, one reconcile pass posted a completion comment and complete-status move, and a blocked comment;
+- after the synthetic ClickUp task was closed, the next pass appended a stop note to the still-active Kanban task;
+- a task title containing `error:` did not produce a false dispatch failure;
+- the temporary home and state file were removed afterward.
+
+No real ClickUp workspace was contacted. The ClickUp REST calls for write-back, list sweeps, and webhook health are therefore covered by unit tests against recorded request shapes, not by live API evidence.
+
 ## Remaining compatibility risks
 
-1. ClickUp API hydration and signed-webhook parity still need sanitized production-like payloads before any non-dry-run cutover.
+1. ClickUp API hydration, signed-webhook parity, `taskAssigneeUpdated` history items, write-back calls, list sweeps, and webhook health responses still need sanitized production-like payloads before any non-dry-run cutover.
 2. Hosted CI passed on the reviewed PR head (`31226899863`) and again on merged `main` (`31227293980`) across Python 3.11–3.13, JavaScript contracts, and the Hermes Agent 0.19.0 native lifecycle; both final runs had zero check-run annotations.
 3. Enabling either UI outside a disposable profile remains an explicit trust/configuration action and is not automated.

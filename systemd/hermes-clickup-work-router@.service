@@ -7,7 +7,7 @@ Type=simple
 WorkingDirectory=%h/.hermes/plugins/clickup-work-router
 Environment=PYTHONUNBUFFERED=1
 Environment=HERMES_HOME=%h/.hermes
-ExecStart=/usr/bin/python3 -m clickup_work_router.service --workspace %i --env-file %h/.hermes/clickup-webhook-router/%i/.env
+ExecStart=/usr/bin/python3 -m clickup_work_router.service --workspace %i --env-file %h/.hermes/clickup-webhook-router/%i/.env --state-db %h/.hermes/clickup-webhook-router/%i/state.sqlite3
 Restart=always
 RestartSec=5
 
